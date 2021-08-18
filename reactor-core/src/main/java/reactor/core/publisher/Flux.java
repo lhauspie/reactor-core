@@ -2529,6 +2529,39 @@ public abstract class Flux<T> implements CorePublisher<T> {
 
 	//FIXME use Function/Consumer patterns for API groups
 
+	public static FluxApiFactoryMerge fromMerging() {
+		return FluxApiFactoryMerge.INSTANCE;
+	}
+
+	public static FluxApiFactoryConcat fromConcatening() {
+		return FluxApiFactoryConcat.INSTANCE;
+	}
+
+	public final FluxApiGroupBuffer<T> buffers() {
+		return new FluxApiGroupBuffer<>(this);
+	}
+
+	public final FluxApiGroupConcatMap<T> concatMaps() {
+		return new FluxApiGroupConcatMap<>(this);
+	}
+
+	public final FluxApiGroupFlatMap<T> flatMaps() {
+		return new FluxApiGroupFlatMap<>(this);
+	}
+
+	public final FluxApiGroupWindow<T> windows() {
+		return new FluxApiGroupWindow<>(this);
+	}
+
+	//keep doFirst/doFinally directly accessible
+	public final FluxApiGroupDoOnCommon<T> doOn() {
+		return new FluxApiGroupDoOnCommon<>(this);
+	}
+
+	public final FluxApiGroupUnsafe<T> unsafe() {
+		return new FluxApiGroupUnsafe<>(this);
+	}
+
 	//	 ==============================================================================================================
 	//	 Instance Operators
 	//	 ==============================================================================================================
@@ -2681,478 +2714,317 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	}
 
 	/**
-	 * Collect all incoming values into a single {@link List} buffer that will be emitted
-	 * by the returned {@link Flux} once this Flux completes.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/buffer.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the buffer upon cancellation or error triggered by a data signal.
+	 * See {@link FluxApiGroupBuffer#all()}.
 	 *
 	 * @return a buffered {@link Flux} of at most one {@link List}
 	 * @see #collectList() for an alternative collecting algorithm returning {@link Mono}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#all() .all()} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
     public final Flux<List<T>> buffer() {
-	    return buffer(Integer.MAX_VALUE);
+	    return buffers().all();
 	}
 
 	/**
-	 * Collect incoming values into multiple {@link List} buffers that will be emitted
-	 * by the returned {@link Flux} each time the given max size is reached or once this
-	 * Flux completes.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithMaxSize.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
+	 * See {@link FluxApiGroupBuffer#bySize(int)}.
 	 *
 	 * @param maxSize the maximum collected size
-	 *
-	 * @return a microbatched {@link Flux} of {@link List}
+	 * @return a buffered {@link Flux} of {@link List}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#bySize(int) .bySize} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<List<T>> buffer(int maxSize) {
-		return buffer(maxSize, listSupplier());
+		return buffers().bySize(maxSize);
 	}
 
 	/**
-	 * Collect incoming values into multiple user-defined {@link Collection} buffers that
-	 * will be emitted by the returned {@link Flux} each time the given max size is reached
-	 * or once this Flux completes.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithMaxSize.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal,
-	 * as well as latest unbuffered element if the bufferSupplier fails.
+	 * See {@link FluxApiGroupBuffer#bySize(int, Supplier)}.
 	 *
 	 * @param maxSize the maximum collected size
 	 * @param bufferSupplier a {@link Supplier} of the concrete {@link Collection} to use for each buffer
 	 * @param <C> the {@link Collection} buffer type
 	 *
-	 * @return a microbatched {@link Flux} of {@link Collection}
+	 * @return a buffered {@link Flux} of {@link Collection}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#bySize(int, Supplier) .bySize} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <C extends Collection<? super T>> Flux<C> buffer(int maxSize, Supplier<C> bufferSupplier) {
-		return onAssembly(new FluxBuffer<>(this, maxSize, bufferSupplier));
+		return buffers().bySize(maxSize, bufferSupplier);
 	}
 
 	/**
-	 * Collect incoming values into multiple {@link List} buffers that will be emitted
-	 * by the returned {@link Flux} each time the given max size is reached or once this
-	 * Flux completes. Buffers can be created with gaps, as a new buffer will be created
-	 * every time {@code skip} values have been emitted by the source.
-	 * <p>
-	 * When maxSize < skip : dropping buffers
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithMaxSizeLessThanSkipSize.svg" alt="">
-	 * <p>
-	 * When maxSize > skip : overlapping buffers
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithMaxSizeGreaterThanSkipSize.svg" alt="">
-	 * <p>
-	 * When maxSize == skip : exact buffers
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithMaxSizeEqualsSkipSize.svg" alt="">
+	 * See {@link FluxApiGroupBuffer#bySizeWithSkip(int, int)}.
 	 *
-	 * <p><strong>Discard Support:</strong> This operator discards elements in between buffers (in the case of
-	 * dropping buffers). It also discards the currently open buffer upon cancellation or error triggered by a data signal.
-	 * Note however that overlapping buffer variant DOES NOT discard, as this might result in an element
-	 * being discarded from an early buffer while it is still valid in a more recent buffer.
-	 *
-	 * @param skip the number of items to count before creating a new buffer
 	 * @param maxSize the max collected size
+	 * @param skip the number of items to count before creating a new buffer
 	 *
-	 * @return a microbatched {@link Flux} of possibly overlapped or gapped {@link List}
+	 * @return a buffered {@link Flux} of possibly overlapped or gapped {@link List}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#bySizeWithSkip(int, int) .bySizeWithSkip} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<List<T>> buffer(int maxSize, int skip) {
-		return buffer(maxSize, skip, listSupplier());
+		return buffers().bySizeWithSkip(maxSize, skip);
 	}
 
 	/**
-	 * Collect incoming values into multiple user-defined {@link Collection} buffers that
-	 * will be emitted by the returned {@link Flux} each time the given max size is reached
-	 * or once this Flux completes. Buffers can be created with gaps, as a new buffer will
-	 * be created every time {@code skip} values have been emitted by the source
-	 * <p>
-	 * When maxSize < skip : dropping buffers
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithMaxSizeLessThanSkipSize.svg" alt="">
-	 * <p>
-	 * When maxSize > skip : overlapping buffers
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithMaxSizeGreaterThanSkipSize.svg" alt="">
-	 * <p>
-	 * When maxSize == skip : exact buffers
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithMaxSizeEqualsSkipSize.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards elements in between buffers (in the case of
-	 * dropping buffers). It also discards the currently open buffer upon cancellation or error triggered by a data signal.
-	 * Note however that overlapping buffer variant DOES NOT discard, as this might result in an element
-	 * being discarded from an early buffer while it is still valid in a more recent buffer.
+	 * See {@link FluxApiGroupBuffer#bySizeWithSkip(int, int, Supplier)}.
 	 *
 	 * @param skip the number of items to count before creating a new buffer
 	 * @param maxSize the max collected size
 	 * @param bufferSupplier a {@link Supplier} of the concrete {@link Collection} to use for each buffer
 	 * @param <C> the {@link Collection} buffer type
 	 *
-	 * @return a microbatched {@link Flux} of possibly overlapped or gapped
+	 * @return a buffered {@link Flux} of possibly overlapped or gapped
 	 * {@link Collection}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#bySizeWithSkip(int, int, Supplier) .bySizeWithSkip} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <C extends Collection<? super T>> Flux<C> buffer(int maxSize,
 			int skip, Supplier<C> bufferSupplier) {
-		return onAssembly(new FluxBuffer<>(this, maxSize, skip, bufferSupplier));
+		return buffers().bySizeWithSkip(maxSize, skip, bufferSupplier);
 	}
 
 	/**
-	 * Collect incoming values into multiple {@link List} buffers, as delimited by the
-	 * signals of a companion {@link Publisher} this operator will subscribe to.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithBoundary.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
+	 * See {@link FluxApiGroupBuffer#splitWhen(Publisher)}.
 	 *
 	 * @param other the companion {@link Publisher} whose signals trigger new buffers
-	 *
-	 * @return a microbatched {@link Flux} of {@link List} delimited by signals from a {@link Publisher}
+	 * @return a buffered {@link Flux} of {@link List} delimited by signals from a {@link Publisher}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#splitWhen(Publisher) .split} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<List<T>> buffer(Publisher<?> other) {
-		return buffer(other, listSupplier());
+		return buffers().splitWhen(other);
 	}
 
 	/**
-	 * Collect incoming values into multiple user-defined {@link Collection} buffers, as
-	 * delimited by the signals of a companion {@link Publisher} this operator will
-	 * subscribe to.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithBoundary.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal,
-	 * and the last received element when the bufferSupplier fails.
+	 * See {@link FluxApiGroupBuffer#splitWhen(Publisher, Supplier)}.
 	 *
 	 * @param other the companion {@link Publisher} whose signals trigger new buffers
 	 * @param bufferSupplier a {@link Supplier} of the concrete {@link Collection} to use for each buffer
 	 * @param <C> the {@link Collection} buffer type
 	 *
-	 * @return a microbatched {@link Flux} of {@link Collection} delimited by signals from a {@link Publisher}
+	 * @return a buffered {@link Flux} of {@link Collection} delimited by signals from a {@link Publisher}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#splitWhen(Publisher, Supplier) .splitWhen} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <C extends Collection<? super T>> Flux<C> buffer(Publisher<?> other, Supplier<C> bufferSupplier) {
-		return onAssembly(new FluxBufferBoundary<>(this, other, bufferSupplier));
+		return buffers().splitWhen(other, bufferSupplier);
 	}
 
 	/**
-	 * Collect incoming values into multiple {@link List} buffers that will be emitted by
-	 * the returned {@link Flux} every {@code bufferingTimespan}.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithTimespan.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
+	 * See {@link FluxApiGroupBuffer#byTime(Duration)}.
 	 *
 	 * @param bufferingTimespan the duration from buffer creation until a buffer is closed and emitted
 	 *
-	 * @return a microbatched {@link Flux} of {@link List} delimited by the given time span
+	 * @return a buffered {@link Flux} of {@link List} delimited by the given time span
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#byTime(Duration) .byTime} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<List<T>> buffer(Duration bufferingTimespan) {
-		return buffer(bufferingTimespan, Schedulers.parallel());
+		return buffers().byTime(bufferingTimespan);
 	}
 
 	/**
-	 * Collect incoming values into multiple {@link List} buffers created at a given
-	 * {@code openBufferEvery} period. Each buffer will last until the {@code bufferingTimespan} has elapsed,
-	 * thus emitting the bucket in the resulting {@link Flux}.
-	 * <p>
-	 * When bufferingTimespan < openBufferEvery : dropping buffers
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithTimespanLessThanOpenBufferEvery.svg" alt="">
-	 * <p>
-	 * When bufferingTimespan > openBufferEvery : overlapping buffers
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithTimespanGreaterThanOpenBufferEvery.svg" alt="">
-	 * <p>
-	 * When bufferingTimespan == openBufferEvery : exact buffers
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithTimespanEqualsOpenBufferEvery.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
-	 * It DOES NOT provide strong guarantees in the case of overlapping buffers, as elements
-	 * might get discarded too early (from the first of two overlapping buffers for instance).
+	 * See {@link FluxApiGroupBuffer#byTimeWithSkip(Duration, Duration)}.
 	 *
 	 * @param bufferingTimespan the duration from buffer creation until a buffer is closed and emitted
 	 * @param openBufferEvery the interval at which to create a new buffer
 	 *
-	 * @return a microbatched {@link Flux} of {@link List} delimited by the given period openBufferEvery and sized by bufferingTimespan
+	 * @return a buffered {@link Flux} of {@link List} delimited by the given period openBufferEvery and sized by bufferingTimespan
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#byTimeWithSkip(Duration, Duration) .byTimeWithSkip} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<List<T>> buffer(Duration bufferingTimespan, Duration openBufferEvery) {
-		return buffer(bufferingTimespan, openBufferEvery, Schedulers.parallel());
+		return buffers().byTimeWithSkip(bufferingTimespan, openBufferEvery);
 	}
 
 	/**
-	 * Collect incoming values into multiple {@link List} buffers that will be emitted by
-	 * the returned {@link Flux} every {@code bufferingTimespan}, as measured on the provided {@link Scheduler}.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithTimespan.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
+	 * See {@link FluxApiGroupBuffer#byTime(Duration, Scheduler)}.
 	 *
 	 * @param bufferingTimespan the duration from buffer creation until a buffer is closed and emitted
 	 * @param timer a time-capable {@link Scheduler} instance to run on
 	 *
-	 * @return a microbatched {@link Flux} of {@link List} delimited by the given period
+	 * @return a buffered {@link Flux} of {@link List} delimited by the given period
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#byTime(Duration, Scheduler) .byTime} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<List<T>> buffer(Duration bufferingTimespan, Scheduler timer) {
-		return buffer(interval(bufferingTimespan, timer));
+		return buffers().byTime(bufferingTimespan, timer);
 	}
 
 	/**
-	 * Collect incoming values into multiple {@link List} buffers created at a given
-	 * {@code openBufferEvery} period, as measured on the provided {@link Scheduler}. Each
-	 * buffer will last until the {@code bufferingTimespan} has elapsed (also measured on the scheduler),
-	 * thus emitting the bucket in the resulting {@link Flux}.
-	 * <p>
-	 * When bufferingTimespan < openBufferEvery : dropping buffers
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithTimespanLessThanOpenBufferEvery.svg" alt="">
-	 * <p>
-	 * When bufferingTimespan > openBufferEvery : overlapping buffers
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithTimespanGreaterThanOpenBufferEvery.svg" alt="">
-	 * <p>
-	 * When bufferingTimespan == openBufferEvery : exact buffers
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWithTimespanEqualsOpenBufferEvery.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
-	 * It DOES NOT provide strong guarantees in the case of overlapping buffers, as elements
-	 * might get discarded too early (from the first of two overlapping buffers for instance).
+	 * See {@link FluxApiGroupBuffer#byTimeWithSkip(Duration, Duration, Scheduler)}.
 	 *
 	 * @param bufferingTimespan the duration from buffer creation until a buffer is closed and emitted
 	 * @param openBufferEvery the interval at which to create a new buffer
 	 * @param timer a time-capable {@link Scheduler} instance to run on
 	 *
-	 * @return a microbatched {@link Flux} of {@link List} delimited by the given period openBufferEvery and sized by bufferingTimespan
+	 * @return a buffered {@link Flux} of {@link List} delimited by the given period openBufferEvery and sized by bufferingTimespan
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#byTimeWithSkip(Duration, Duration, Scheduler) .byTimeWithSkip} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<List<T>> buffer(Duration bufferingTimespan, Duration openBufferEvery, Scheduler timer) {
-		if (bufferingTimespan.equals(openBufferEvery)) {
-			return buffer(bufferingTimespan, timer);
-		}
-		return bufferWhen(interval(Duration.ZERO, openBufferEvery, timer), aLong -> Mono
-				.delay(bufferingTimespan, timer));
+		return buffers().byTimeWithSkip(bufferingTimespan, openBufferEvery, timer);
 	}
 
 	/**
-	 * Collect incoming values into multiple {@link List} buffers that will be emitted
-	 * by the returned {@link Flux} each time the buffer reaches a maximum size OR the
-	 * maxTime {@link Duration} elapses.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferTimeoutWithMaxSizeAndTimespan.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
+	 * See {@link FluxApiGroupBuffer#bySizeOrTimeout(int, Duration)}.
 	 *
 	 * @param maxSize the max collected size
 	 * @param maxTime the timeout enforcing the release of a partial buffer
 	 *
-	 * @return a microbatched {@link Flux} of {@link List} delimited by given size or a given period timeout
+	 * @return a buffered {@link Flux} of {@link List} delimited by given size or a given period timeout
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#bySizeOrTimeout(int, Duration) .bySizeOrTimeout} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<List<T>> bufferTimeout(int maxSize, Duration maxTime) {
-		return bufferTimeout(maxSize, maxTime, listSupplier());
+		return buffers().bySizeOrTimeout(maxSize, maxTime);
 	}
 
 	/**
-	 * Collect incoming values into multiple user-defined {@link Collection} buffers that
-	 * will be emitted by the returned {@link Flux} each time the buffer reaches a maximum
-	 * size OR the maxTime {@link Duration} elapses.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferTimeoutWithMaxSizeAndTimespan.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
+	 * See {@link FluxApiGroupBuffer#bySizeOrTimeout(int, Duration, Supplier)}.
 	 *
 	 * @param maxSize the max collected size
 	 * @param maxTime the timeout enforcing the release of a partial buffer
 	 * @param bufferSupplier a {@link Supplier} of the concrete {@link Collection} to use for each buffer
 	 * @param <C> the {@link Collection} buffer type
-	 * @return a microbatched {@link Flux} of {@link Collection} delimited by given size or a given period timeout
+	 * @return a buffered {@link Flux} of {@link Collection} delimited by given size or a given period timeout
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#bySizeOrTimeout(int, Duration, Supplier) .bySizeOrTimeout} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <C extends Collection<? super T>> Flux<C> bufferTimeout(int maxSize, Duration maxTime, Supplier<C> bufferSupplier) {
-		return bufferTimeout(maxSize, maxTime, Schedulers.parallel(),
-				bufferSupplier);
+		return buffers().bySizeOrTimeout(maxSize, maxTime, bufferSupplier);
 	}
 
 	/**
-	 * Collect incoming values into multiple {@link List} buffers that will be emitted
-	 * by the returned {@link Flux} each time the buffer reaches a maximum size OR the
-	 * maxTime {@link Duration} elapses, as measured on the provided {@link Scheduler}.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferTimeoutWithMaxSizeAndTimespan.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
+	 * See {@link FluxApiGroupBuffer#bySizeOrTimeout(int, Duration, Scheduler)}.
 	 *
 	 * @param maxSize the max collected size
 	 * @param maxTime the timeout enforcing the release of a partial buffer
 	 * @param timer a time-capable {@link Scheduler} instance to run on
 	 *
-	 * @return a microbatched {@link Flux} of {@link List} delimited by given size or a given period timeout
+	 * @return a buffered {@link Flux} of {@link List} delimited by given size or a given period timeout
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#bySizeOrTimeout(int, Duration, Scheduler) .bySizeOrTimeout} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<List<T>> bufferTimeout(int maxSize, Duration maxTime, Scheduler timer) {
-		return bufferTimeout(maxSize, maxTime, timer, listSupplier());
+		return buffers().bySizeOrTimeout(maxSize, maxTime, timer);
 	}
 
 	/**
-	 * Collect incoming values into multiple user-defined {@link Collection} buffers that
-	 * will be emitted by the returned {@link Flux} each time the buffer reaches a maximum
-	 * size OR the maxTime {@link Duration} elapses, as measured on the provided {@link Scheduler}.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferTimeoutWithMaxSizeAndTimespan.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
+	 * See {@link FluxApiGroupBuffer#bySizeOrTimeout(int, Duration, Scheduler, Supplier)}.
 	 *
 	 * @param maxSize the max collected size
 	 * @param maxTime the timeout enforcing the release of a partial buffer
 	 * @param timer a time-capable {@link Scheduler} instance to run on
 	 * @param bufferSupplier a {@link Supplier} of the concrete {@link Collection} to use for each buffer
 	 * @param <C> the {@link Collection} buffer type
-	 * @return a microbatched {@link Flux} of {@link Collection} delimited by given size or a given period timeout
+	 * @return a buffered {@link Flux} of {@link Collection} delimited by given size or a given period timeout
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#bySizeOrTimeout(int, Duration, Scheduler, Supplier) .bySizeOrTimeout} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final  <C extends Collection<? super T>> Flux<C> bufferTimeout(int maxSize, Duration maxTime,
 			Scheduler timer, Supplier<C> bufferSupplier) {
-		return onAssembly(new FluxBufferTimeout<>(this, maxSize, maxTime.toNanos(), TimeUnit.NANOSECONDS, timer, bufferSupplier));
+		return buffers().bySizeOrTimeout(maxSize, maxTime, timer, bufferSupplier);
 	}
 
 	/**
-	 * Collect incoming values into multiple {@link List} buffers that will be emitted by
-	 * the resulting {@link Flux} each time the given predicate returns true. Note that
-	 * the element that triggers the predicate to return true (and thus closes a buffer)
-	 * is included as last element in the emitted buffer.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferUntil.svg" alt="">
-	 * <p>
-	 * On completion, if the latest buffer is non-empty and has not been closed it is
-	 * emitted. However, such a "partial" buffer isn't emitted in case of onError
-	 * termination.
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
+	 * See {@link FluxApiGroupBuffer#until(Predicate)}.
 	 *
 	 * @param predicate a predicate that triggers the next buffer when it becomes true.
-	 * @return a microbatched {@link Flux} of {@link List}
+	 * @return a buffered {@link Flux} of {@link List}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#until(Predicate) .until} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<List<T>> bufferUntil(Predicate<? super T> predicate) {
-		return onAssembly(new FluxBufferPredicate<>(this, predicate,
-				listSupplier(), FluxBufferPredicate.Mode.UNTIL));
+		return buffers().until(predicate);
 	}
 
 	/**
-	 * Collect incoming values into multiple {@link List} buffers that will be emitted by
-	 * the resulting {@link Flux} each time the given predicate returns true. Note that
-	 * the buffer into which the element that triggers the predicate to return true
-	 * (and thus closes a buffer) is included depends on the {@code cutBefore} parameter:
-	 * set it to true to include the boundary element in the newly opened buffer, false to
-	 * include it in the closed buffer (as in {@link #bufferUntil(Predicate)}).
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferUntilWithCutBefore.svg" alt="">
-	 * <p>
-	 * On completion, if the latest buffer is non-empty and has not been closed it is
-	 * emitted. However, such a "partial" buffer isn't emitted in case of onError
-	 * termination.
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
+	 * See {@link FluxApiGroupBuffer#until(Predicate, boolean)}.
 	 *
 	 * @param predicate a predicate that triggers the next buffer when it becomes true.
 	 * @param cutBefore set to true to include the triggering element in the new buffer rather than the old.
-	 * @return a microbatched {@link Flux} of {@link List}
+	 * @return a buffered {@link Flux} of {@link List}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#until(Predicate, boolean) .until} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<List<T>> bufferUntil(Predicate<? super T> predicate, boolean cutBefore) {
-		return onAssembly(new FluxBufferPredicate<>(this, predicate, listSupplier(),
-				cutBefore ? FluxBufferPredicate.Mode.UNTIL_CUT_BEFORE
-						  : FluxBufferPredicate.Mode.UNTIL));
+		return buffers().until(predicate, cutBefore);
 	}
 
 	/**
-	 * Collect subsequent repetitions of an element (that is, if they arrive right after
-	 * one another) into multiple {@link List} buffers that will be emitted by the
-	 * resulting {@link Flux}.
+	 * See {@link FluxApiGroupBuffer#untilChanged()}.
 	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferUntilChanged.svg" alt="">
-	 * <p>
-	 *
-	 * @return a microbatched {@link Flux} of {@link List}
+	 * @return a buffered {@link Flux} of {@link List}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#untilChanged() .untilChanged()} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
-	public final <V> Flux<List<T>> bufferUntilChanged() {
-		return bufferUntilChanged(identityFunction());
+	@Deprecated
+	public final Flux<List<T>> bufferUntilChanged() {
+		return buffers().untilChanged();
 	}
 
 	/**
-	 * Collect subsequent repetitions of an element (that is, if they arrive right after
-	 * one another), as compared by a key extracted through the user provided {@link
-	 * Function}, into multiple {@link List} buffers that will be emitted by the
-	 * resulting {@link Flux}.
-	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferUntilChangedWithKey.svg" alt="">
-	 * <p>
+	 * See {@link FluxApiGroupBuffer#untilChanged(Function)}.
 	 *
 	 * @param keySelector function to compute comparison key for each element
-	 * @return a microbatched {@link Flux} of {@link List}
+	 * @return a buffered {@link Flux} of {@link List}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#untilChanged(Function) .untilChanged} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <V> Flux<List<T>> bufferUntilChanged(Function<? super T, ? extends V> keySelector) {
-		return bufferUntilChanged(keySelector, equalPredicate());
+		return buffers().untilChanged(keySelector);
 	}
 
 	/**
-	 * Collect subsequent repetitions of an element (that is, if they arrive right after
-	 * one another), as compared by a key extracted through the user provided {@link
-	 * Function} and compared using a supplied {@link BiPredicate}, into multiple
-	 * {@link List} buffers that will be emitted by the resulting {@link Flux}.
-	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferUntilChangedWithKey.svg" alt="">
-	 * <p>
+	 * See {@link FluxApiGroupBuffer#untilChanged(Function, BiPredicate)}.
 	 *
 	 * @param keySelector function to compute comparison key for each element
 	 * @param keyComparator predicate used to compare keys
-	 * @return a microbatched {@link Flux} of {@link List}
+	 * @return a buffered {@link Flux} of {@link List}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#untilChanged(Function, BiPredicate) .untilChanged} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <V> Flux<List<T>> bufferUntilChanged(Function<? super T, ? extends V> keySelector,
 			BiPredicate<? super V, ? super V> keyComparator) {
-		return Flux.defer(() -> bufferUntil(new FluxBufferPredicate.ChangedPredicate<T, V>(keySelector,
-				keyComparator), true));
+		return buffers().untilChanged(keySelector, keyComparator);
 	}
 
 	/**
-	 * Collect incoming values into multiple {@link List} buffers that will be emitted by
-	 * the resulting {@link Flux}. Each buffer continues aggregating values while the
-	 * given predicate returns true, and a new buffer is created as soon as the
-	 * predicate returns false... Note that the element that triggers the predicate
-	 * to return false (and thus closes a buffer) is NOT included in any emitted buffer.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWhile.svg" alt="">
-	 * <p>
-	 * On completion, if the latest buffer is non-empty and has not been closed it is
-	 * emitted. However, such a "partial" buffer isn't emitted in case of onError
-	 * termination.
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal,
-	 * as well as the buffer-triggering element.
+	 * See {@link FluxApiGroupBuffer#splitIf(Predicate)}.
 	 *
 	 * @param predicate a predicate that triggers the next buffer when it becomes false.
-	 * @return a microbatched {@link Flux} of {@link List}
+	 * @return a buffered {@link Flux} of {@link List}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#splitIf(Predicate) .splitIf} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<List<T>> bufferWhile(Predicate<? super T> predicate) {
-		return onAssembly(new FluxBufferPredicate<>(this, predicate,
-				listSupplier(), FluxBufferPredicate.Mode.WHILE));
+		return buffers().splitIf(predicate);
 	}
 
 	/**
-	 * Collect incoming values into multiple {@link List} buffers started each time an opening
-	 * companion {@link Publisher} emits. Each buffer will last until the corresponding
-	 * closing companion {@link Publisher} emits, thus releasing the buffer to the resulting {@link Flux}.
-	 * <p>
-	 * When Open signal is strictly not overlapping Close signal : dropping buffers (see green marbles in diagram below).
-	 * <p>
-	 * When Open signal is strictly more frequent than Close signal : overlapping buffers (see second and third buffers in diagram below).
-	 * <p>
-	 * When Open signal is exactly coordinated with Close signal : exact buffers
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWhen.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
-	 * It DOES NOT provide strong guarantees in the case of overlapping buffers, as elements
-	 * might get discarded too early (from the first of two overlapping buffers for instance).
+	 * See {@link FluxApiGroupBuffer#when(Publisher, Function)}.
 	 *
 	 * @param bucketOpening a companion {@link Publisher} to subscribe for buffer creation signals.
 	 * @param closeSelector a factory that, given a buffer opening signal, returns a companion
@@ -3160,28 +3032,19 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * @param <U> the element type of the buffer-opening sequence
 	 * @param <V> the element type of the buffer-closing sequence
 	 *
-	 * @return a microbatched {@link Flux} of {@link List} delimited by an opening {@link Publisher} and a relative
+	 * @return a buffered {@link Flux} of {@link List} delimited by an opening {@link Publisher} and a relative
 	 * closing {@link Publisher}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#when(Publisher, Function) .when} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <U, V> Flux<List<T>> bufferWhen(Publisher<U> bucketOpening,
 			Function<? super U, ? extends Publisher<V>> closeSelector) {
-		return bufferWhen(bucketOpening, closeSelector, listSupplier());
+		return buffers().when(bucketOpening, closeSelector);
 	}
 
 	/**
-	 * Collect incoming values into multiple user-defined {@link Collection} buffers started each time an opening
-	 * companion {@link Publisher} emits. Each buffer will last until the corresponding
-	 * closing companion {@link Publisher} emits, thus releasing the buffer to the resulting {@link Flux}.
-	 * <p>
-	 * When Open signal is strictly not overlapping Close signal : dropping buffers (see green marbles in diagram below).
-	 * <p>
-	 * When Open signal is strictly more frequent than Close signal : overlapping buffers (see second and third buffers in diagram below).
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferWhenWithSupplier.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
-	 * It DOES NOT provide strong guarantees in the case of overlapping buffers, as elements
-	 * might get discarded too early (from the first of two overlapping buffers for instance).
+	 * See {@link FluxApiGroupBuffer#when(Publisher, Function, Supplier)}.
 	 *
 	 * @param bucketOpening a companion {@link Publisher} to subscribe for buffer creation signals.
 	 * @param closeSelector a factory that, given a buffer opening signal, returns a companion
@@ -3191,13 +3054,15 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * @param <V> the element type of the buffer-closing sequence
 	 * @param <C> the {@link Collection} buffer type
 	 *
-	 * @return a microbatched {@link Flux} of {@link Collection} delimited by an opening {@link Publisher} and a relative
+	 * @return a buffered {@link Flux} of {@link Collection} delimited by an opening {@link Publisher} and a relative
 	 * closing {@link Publisher}
+	 * @deprecated use {@link #buffers()}{@link FluxApiGroupBuffer#when(Publisher, Function, Supplier) .when} instead.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <U, V, C extends Collection<? super T>> Flux<C> bufferWhen(Publisher<U> bucketOpening,
 			Function<? super U, ? extends Publisher<V>> closeSelector, Supplier<C> bufferSupplier) {
-		return onAssembly(new FluxBufferWhen<>(this, bucketOpening, closeSelector,
-				bufferSupplier, Queues.unbounded(Queues.XS_BUFFER_SIZE)));
+		return buffers().when(bucketOpening, closeSelector, bufferSupplier);
 	}
 
 	/**
@@ -4529,31 +4394,20 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	}
 
 	/**
-	 * Potentially modify the behavior of the <i>whole chain</i> of operators upstream of this one to
-	 * conditionally clean up elements that get <i>discarded</i> by these operators.
-	 * <p>
-	 * The {@code discardHook} MUST be idempotent and safe to use on any instance of the desired
-	 * type.
-	 * Calls to this method are additive, and the order of invocation of the {@code discardHook}
-	 * is the same as the order of declaration (calling {@code .filter(...).doOnDiscard(first).doOnDiscard(second)}
-	 * will let the filter invoke {@code first} then {@code second} handlers).
-	 * <p>
-	 * Two main categories of discarding operators exist:
-	 * <ul>
-	 *     <li>filtering operators, dropping some source elements as part of their designed behavior</li>
-	 *     <li>operators that prefetch a few elements and keep them around pending a request, but get cancelled/in error</li>
-	 * </ul>
-	 * WARNING: Not all operators support this instruction. The ones that do are identified in the javadoc by
-	 * the presence of a <strong>Discard Support</strong> section.
+	 * See {@link FluxApiGroupUnsafe#influenceUpstreamToDiscardUsing(Class, Consumer)}.
 	 *
 	 * @param type the {@link Class} of elements in the upstream chain of operators that
 	 * this cleanup hook should take into account.
 	 * @param discardHook a {@link Consumer} of elements in the upstream chain of operators
 	 * that performs the cleanup.
 	 * @return a {@link Flux} that cleans up matching elements that get discarded upstream of it.
+	 *
+	 * @deprecated Use {@link #unsafe()} and replace with {@link FluxApiGroupUnsafe#influenceUpstreamToDiscardUsing(Class, Consumer)}
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <R> Flux<T> doOnDiscard(final Class<R> type, final Consumer<? super R> discardHook) {
-		return subscriberContext(Operators.discardLocalAdapter(type, discardHook));
+		return unsafe().influenceUpstreamToDiscardUsing(type, discardHook);
 	}
 
 	/**
@@ -5237,7 +5091,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 */
 	public final <V> Flux<V> flatMap(Function<? super T, ? extends Publisher<? extends V>> mapper, int
 			concurrency, int prefetch) {
-		return flatMap(mapper, false, concurrency, prefetch);
+		return FluxApiGroupFlatMap.map(this, mapper, false, concurrency, prefetch);
 	}
 
 	/**
@@ -5281,7 +5135,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 */
 	public final <V> Flux<V> flatMapDelayError(Function<? super T, ? extends Publisher<? extends V>> mapper,
 			int concurrency, int prefetch) {
-		return flatMap(mapper, true, concurrency, prefetch);
+		return FluxApiGroupFlatMap.map(this, mapper, true, concurrency, prefetch);
 	}
 
 	/**
@@ -5526,7 +5380,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 */
 	public final <R> Flux<R> flatMapSequential(Function<? super T, ? extends
 			Publisher<? extends R>> mapper, int maxConcurrency, int prefetch) {
-		return flatMapSequential(mapper, false, maxConcurrency, prefetch);
+		return FluxApiGroupFlatMap.mapSequential(this, mapper, false, maxConcurrency, prefetch);
 	}
 
 	/**
@@ -5571,7 +5425,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 */
 	public final <R> Flux<R> flatMapSequentialDelayError(Function<? super T, ? extends
 			Publisher<? extends R>> mapper, int maxConcurrency, int prefetch) {
-		return flatMapSequential(mapper, true, maxConcurrency, prefetch);
+		return FluxApiGroupFlatMap.mapSequential(this, mapper, true, maxConcurrency, prefetch);
 	}
 
 	/**
@@ -6712,142 +6566,63 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	}
 
 	/**
-	 * Let compatible operators <strong>upstream</strong> recover from errors by dropping the
-	 * incriminating element from the sequence and continuing with subsequent elements.
-	 * The recovered error and associated value are notified via the provided {@link BiConsumer}.
-	 * Alternatively, throwing from that biconsumer will propagate the thrown exception downstream
-	 * in place of the original error, which is added as a suppressed exception to the new one.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/onErrorContinue.svg" alt="">
-	 * <p>
-	 * Note that onErrorContinue() is a specialist operator that can make the behaviour of your
-	 * reactive chain unclear. It operates on upstream, not downstream operators, it requires specific
-	 * operator support to work, and the scope can easily propagate upstream into library code
-	 * that didn't anticipate it (resulting in unintended behaviour.)
-	 * <p>
-	 * In most cases, you should instead handle the error inside the specific function which may cause
-	 * it. Specifically, on each inner publisher you can use {@code doOnError} to log the error, and
-	 * {@code onErrorResume(e -> Mono.empty())} to drop erroneous elements:
-	 * <p>
-	 * <pre>
-	 * .flatMap(id -> repository.retrieveById(id)
-	 *                          .doOnError(System.err::println)
-	 *                          .onErrorResume(e -> Mono.empty()))
-	 * </pre>
-	 * <p>
-	 * This has the advantage of being much clearer, has no ambiguity with regards to operator support,
-	 * and cannot leak upstream.
+	 * See {@link FluxApiGroupUnsafe#influenceUpstreamToContinueOnErrors(BiConsumer)}.
 	 *
 	 * @param errorConsumer a {@link BiConsumer} fed with errors matching the predicate and the value
 	 * that triggered the error.
-	 * @return a {@link Flux} that attempts to continue processing on errors.
+	 * @return a {@link Flux} indicating to its upstream operators that they should strive to continue processing in case of errors.
+	 *
+	 * @deprecated Use {@link #unsafe()} and replace with {@link FluxApiGroupUnsafe#influenceUpstreamToContinueOnErrors(BiConsumer)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> onErrorContinue(BiConsumer<Throwable, Object> errorConsumer) {
-		BiConsumer<Throwable, Object> genericConsumer = errorConsumer;
-		return subscriberContext(Context.of(
-				OnNextFailureStrategy.KEY_ON_NEXT_ERROR_STRATEGY,
-				OnNextFailureStrategy.resume(genericConsumer)
-		));
+		return unsafe().influenceUpstreamToContinueOnErrors(errorConsumer);
 	}
 
 	/**
-	 * Let compatible operators <strong>upstream</strong> recover from errors by dropping the
-	 * incriminating element from the sequence and continuing with subsequent elements.
-	 * Only errors matching the specified {@code type} are recovered from.
-	 * The recovered error and associated value are notified via the provided {@link BiConsumer}.
-	 * Alternatively, throwing from that biconsumer will propagate the thrown exception downstream
-	 * in place of the original error, which is added as a suppressed exception to the new one.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/onErrorContinueWithClassPredicate.svg" alt="">
-	 * <p>
-	 * Note that onErrorContinue() is a specialist operator that can make the behaviour of your
-	 * reactive chain unclear. It operates on upstream, not downstream operators, it requires specific
-	 * operator support to work, and the scope can easily propagate upstream into library code
-	 * that didn't anticipate it (resulting in unintended behaviour.)
-	 * <p>
-	 * In most cases, you should instead handle the error inside the specific function which may cause
-	 * it. Specifically, on each inner publisher you can use {@code doOnError} to log the error, and
-	 * {@code onErrorResume(e -> Mono.empty())} to drop erroneous elements:
-	 * <p>
-	 * <pre>
-	 * .flatMap(id -> repository.retrieveById(id)
-	 *                          .doOnError(MyException.class, System.err::println)
-	 *                          .onErrorResume(MyException.class, e -> Mono.empty()))
-	 * </pre>
-	 * <p>
-	 * This has the advantage of being much clearer, has no ambiguity with regards to operator support,
-	 * and cannot leak upstream.
+	 * See {@link FluxApiGroupUnsafe#influenceUpstreamToContinueOnErrors(Class, BiConsumer)}.
 	 *
 	 * @param type the {@link Class} of {@link Exception} that are resumed from.
 	 * @param errorConsumer a {@link BiConsumer} fed with errors matching the {@link Class}
 	 * and the value that triggered the error.
-	 * @return a {@link Flux} that attempts to continue processing on some errors.
+	 * @return a {@link Flux} indicating to its upstream operators that they should strive to continue processing in case of errors.
+	 *
+	 * @deprecated Use {@link #unsafe()} and replace with {@link FluxApiGroupUnsafe#influenceUpstreamToContinueOnErrors(Class, BiConsumer)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <E extends Throwable> Flux<T> onErrorContinue(Class<E> type, BiConsumer<Throwable, Object> errorConsumer) {
-		return onErrorContinue(type::isInstance, errorConsumer);
+		return unsafe().influenceUpstreamToContinueOnErrors(type, errorConsumer);
 	}
 
 	/**
-	 * Let compatible operators <strong>upstream</strong> recover from errors by dropping the
-	 * incriminating element from the sequence and continuing with subsequent elements.
-	 * Only errors matching the {@link Predicate} are recovered from (note that this
-	 * predicate can be applied several times and thus must be idempotent).
-	 * The recovered error and associated value are notified via the provided {@link BiConsumer}.
-	 * Alternatively, throwing from that biconsumer will propagate the thrown exception downstream
-	 * in place of the original error, which is added as a suppressed exception to the new one.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/onErrorContinueWithPredicate.svg" alt="">
-	 * <p>
-	 * Note that onErrorContinue() is a specialist operator that can make the behaviour of your
-	 * reactive chain unclear. It operates on upstream, not downstream operators, it requires specific
-	 * operator support to work, and the scope can easily propagate upstream into library code
-	 * that didn't anticipate it (resulting in unintended behaviour.)
-	 * <p>
-	 * In most cases, you should instead handle the error inside the specific function which may cause
-	 * it. Specifically, on each inner publisher you can use {@code doOnError} to log the error, and
-	 * {@code onErrorResume(e -> Mono.empty())} to drop erroneous elements:
-	 * <p>
-	 * <pre>
-	 * .flatMap(id -> repository.retrieveById(id)
-	 *                          .doOnError(errorPredicate, System.err::println)
-	 *                          .onErrorResume(errorPredicate, e -> Mono.empty()))
-	 * </pre>
-	 * <p>
-	 * This has the advantage of being much clearer, has no ambiguity with regards to operator support,
-	 * and cannot leak upstream.
+	 * See {@link FluxApiGroupUnsafe#influenceUpstreamToContinueOnErrors(Predicate, BiConsumer)}.
 	 *
 	 * @param errorPredicate a {@link Predicate} used to filter which errors should be resumed from.
 	 * This MUST be idempotent, as it can be used several times.
 	 * @param errorConsumer a {@link BiConsumer} fed with errors matching the predicate and the value
 	 * that triggered the error.
 	 * @return a {@link Flux} that attempts to continue processing on some errors.
+	 *
+	 * @deprecated Use {@link #unsafe()} and replace with {@link FluxApiGroupUnsafe#influenceUpstreamToContinueOnErrors(Predicate, BiConsumer)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
-	public final <E extends Throwable> Flux<T> onErrorContinue(Predicate<E> errorPredicate,
-			BiConsumer<Throwable, Object> errorConsumer) {
-		//this cast is ok as only T values will be propagated in this sequence
-		@SuppressWarnings("unchecked")
-		Predicate<Throwable> genericPredicate = (Predicate<Throwable>) errorPredicate;
-		BiConsumer<Throwable, Object> genericErrorConsumer = errorConsumer;
-		return subscriberContext(Context.of(
-				OnNextFailureStrategy.KEY_ON_NEXT_ERROR_STRATEGY,
-				OnNextFailureStrategy.resumeIf(genericPredicate, genericErrorConsumer)
-		));
+	@Deprecated
+	public final <E extends Throwable> Flux<T> onErrorContinue(Predicate<E> errorPredicate, BiConsumer<Throwable, Object> errorConsumer) {
+		return unsafe().influenceUpstreamToContinueOnErrors(errorPredicate, errorConsumer);
 	}
 
 	/**
-	 * If an {@link #onErrorContinue(BiConsumer)} variant has been used downstream, reverts
-	 * to the default 'STOP' mode where errors are terminal events upstream. It can be
-	 * used for easier scoping of the on next failure strategy or to override the
-	 * inherited strategy in a sub-stream (for example in a flatMap). It has no effect if
-	 * {@link #onErrorContinue(BiConsumer)} has not been used downstream.
-	 *
 	 * @return a {@link Flux} that terminates on errors, even if {@link #onErrorContinue(BiConsumer)}
 	 * was used downstream
+	 *
+	 * @deprecated Use {@link #unsafe()} and replace with {@link FluxApiGroupUnsafe#stopInfluencingUpstreamToContinueOnErrors()}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> onErrorStop() {
-		return subscriberContext(Context.of(
-				OnNextFailureStrategy.KEY_ON_NEXT_ERROR_STRATEGY,
-				OnNextFailureStrategy.stop()));
+		return unsafe().stopInfluencingUpstreamToContinueOnErrors();
 	}
 
 	/**
@@ -10168,28 +9943,6 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	@Override
 	public String toString() {
 		return getClass().getSimpleName();
-	}
-
-
-	final <V> Flux<V> flatMap(Function<? super T, ? extends Publisher<? extends
-			V>> mapper, boolean delayError, int concurrency, int prefetch) {
-		return onAssembly(new FluxFlatMap<>(
-				this,
-				mapper,
-				delayError,
-				concurrency,
-				Queues.get(concurrency),
-				prefetch,
-				Queues.get(prefetch)
-		));
-	}
-
-	final <R> Flux<R> flatMapSequential(Function<? super T, ? extends
-			Publisher<? extends R>> mapper, boolean delayError, int maxConcurrency,
-			int prefetch) {
-		return onAssembly(new FluxMergeSequential<>(this, mapper, maxConcurrency,
-				prefetch, delayError ? FluxConcatMap.ErrorMode.END :
-				FluxConcatMap.ErrorMode.IMMEDIATE));
 	}
 
 	@SuppressWarnings("unchecked")
