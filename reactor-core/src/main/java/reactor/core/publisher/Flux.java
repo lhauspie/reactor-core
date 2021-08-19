@@ -122,6 +122,129 @@ public abstract class Flux<T> implements CorePublisher<T> {
 //	 ==============================================================================================================
 
 	/**
+	 * See {@link FluxApiFactoryConcat#fromIterable(Iterable)}.
+	 *
+	 * @param sources The {@link Iterable} of {@link Publisher} to concatenate
+	 * @param <T> The type of values in both source and output sequences
+	 *
+	 * @return a new {@link Flux} concatenating all source sequences
+	 * @deprecated Use {@link #fromConcatening()} {@link FluxApiFactoryConcat#fromIterable(Iterable)}.
+	 * To be aggressively removed in 4.1.0.
+	 */
+	@Deprecated
+	public static <T> Flux<T> concat(Iterable<? extends Publisher<? extends T>> sources) {
+		return fromConcatening().fromIterable(sources);
+	}
+
+	/**
+	 * See {@link FluxApiFactoryConcat#fromPublisher(Publisher)}.
+	 *
+	 * @param sources The {@link Publisher} of {@link Publisher} to concatenate
+	 * @param <T> The type of values in both source and output sequences
+	 *
+	 * @return a new {@link Flux} concatenating all inner sources sequences
+	 * @deprecated Use {@link #fromConcatening()} {@link FluxApiFactoryConcat#fromPublisher(Publisher)}.
+	 * To be aggressively removed in 4.1.0.
+	 */
+	@Deprecated
+	public static <T> Flux<T> concat(Publisher<? extends Publisher<? extends T>> sources) {
+		return fromConcatening().fromPublisher(sources);
+	}
+
+	/**
+	 * See {@link FluxApiFactoryConcat#fromPublisher(Publisher, int)}.
+	 *
+	 * @param sources The {@link Publisher} of {@link Publisher} to concatenate
+	 * @param prefetch the number of Publishers to prefetch from the outer {@link Publisher}
+	 * @param <T> The type of values in both source and output sequences
+	 *
+	 * @return a new {@link Flux} concatenating all inner sources sequences
+	 * @deprecated Use {@link #fromConcatening()}  {@link FluxApiFactoryConcat#fromPublisher(Publisher, int)}.
+	 * To be aggressively removed in 4.1.0.
+	 */
+	@Deprecated
+	public static <T> Flux<T> concat(Publisher<? extends Publisher<? extends T>> sources, int prefetch) {
+		return fromConcatening().fromPublisher(sources, prefetch);
+	}
+
+	/**
+	 * See {@link FluxApiFactoryConcat#allOf(Publisher[])}.
+	 *
+	 * @param sources The {@link Publisher} of {@link Publisher} to concat
+	 * @param <T> The type of values in both source and output sequences
+	 *
+	 * @return a new {@link Flux} concatenating all source sequences
+	 * @deprecated Use {@link #fromConcatening()} {@link FluxApiFactoryConcat#allOf(Publisher[])}.
+	 * To be aggressively removed in 4.1.0.
+	 */
+	@SafeVarargs
+	@Deprecated
+	public static <T> Flux<T> concat(Publisher<? extends T>... sources) {
+		return fromConcatening().allOf(sources);
+	}
+
+	/**
+	 * See {@link FluxApiFactoryConcat#fromPublisherDelayError(Publisher)}.
+	 *
+	 * @param sources The {@link Publisher} of {@link Publisher} to concatenate
+	 * @param <T> The type of values in both source and output sequences
+	 *
+	 * @return a new {@link Flux} concatenating all inner sources sequences, delaying errors
+	 * @deprecated Use {@link #fromConcatening()} {@link FluxApiFactoryConcat#fromPublisherDelayError(Publisher)}.
+	 * To be aggressively removed in 4.1.0.
+	 */
+	@Deprecated
+	public static <T> Flux<T> concatDelayError(Publisher<? extends Publisher<? extends T>> sources) {
+		return fromConcatening().fromPublisherDelayError(sources);
+	}
+
+	/**
+	 * See {@link FluxApiFactoryConcat#fromPublisherDelayError(Publisher, int)}.
+	 *
+	 * @return a new {@link Flux} concatenating all inner sources sequences until complete or error
+	 * @deprecated Use {@link #fromConcatening()} {@link FluxApiFactoryConcat#fromPublisherDelayError(Publisher, int)}.
+	 * To be aggressively removed in 4.1.0.
+	 */
+	@Deprecated
+	public static <T> Flux<T> concatDelayError(Publisher<? extends Publisher<? extends T>> sources, int prefetch) {
+		return fromConcatening().fromPublisherDelayError(sources, prefetch);
+	}
+
+	/**
+	 * See {@link FluxApiFactoryConcat#fromPublisherDelayError(Publisher, boolean, int)}.
+	 *
+	 * @param sources The {@link Publisher} of {@link Publisher} to concatenate
+	 * @param delayUntilEnd delay error until all sources have been consumed instead of
+	 * after the current source
+	 * @param prefetch the number of Publishers to prefetch from the outer {@link Publisher}
+	 * @param <T> The type of values in both source and output sequences
+	 *
+	 * @return a new {@link Flux} concatenating all inner sources sequences until complete or error
+	 * @deprecated Use {@link #fromConcatening()} {@link FluxApiFactoryConcat#fromPublisherDelayError(Publisher, boolean, int)}.
+	 * To be aggressively removed in 4.1.0.
+	 */
+	@Deprecated
+	public static <T> Flux<T> concatDelayError(Publisher<? extends Publisher<? extends T>> sources, boolean delayUntilEnd, int prefetch) {
+		return fromConcatening().fromPublisherDelayError(sources, delayUntilEnd, prefetch);
+	}
+
+	/**
+	 * See {@link FluxApiFactoryConcat#allOfDelayError(Publisher[])}.
+	 *
+	 * @param sources The {@link Publisher} of {@link Publisher} to concat
+	 * @param <T> The type of values in both source and output sequences
+	 *
+	 * @return a new {@link Flux} concatenating all source sequences
+	 * @deprecated Use {@link #fromConcatening()} {@link FluxApiFactoryConcat#allOfDelayError(Publisher[])}.
+	 * To be aggressively removed in 4.1.0.
+	 */
+	@SafeVarargs
+	@Deprecated
+	public static <T> Flux<T> concatDelayError(Publisher<? extends T>... sources) {
+		return fromConcatening().allOfDelayError(sources);
+	}
+
+	/**
 	 * Build a {@link Flux} whose data are generated by the combination of <strong>the
 	 * most recently published</strong> value from each of the {@link Publisher} sources.
 	 * <p>
@@ -396,206 +519,6 @@ public abstract class Flux<T> implements CorePublisher<T> {
 		return onAssembly(new FluxCombineLatest<T, V>(sources,
 				combinator,
 				Queues.get(prefetch), prefetch));
-	}
-
-	/**
-	 * Concatenate all sources provided in an {@link Iterable}, forwarding elements
-	 * emitted by the sources downstream.
-	 * <p>
-	 * Concatenation is achieved by sequentially subscribing to the first source then
-	 * waiting for it to complete before subscribing to the next, and so on until the
-	 * last source completes. Any error interrupts the sequence immediately and is
-	 * forwarded downstream.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatVarSources.svg" alt="">
-	 *
-	 * @param sources The {@link Iterable} of {@link Publisher} to concatenate
-	 * @param <T> The type of values in both source and output sequences
-	 *
-	 * @return a new {@link Flux} concatenating all source sequences
-	 */
-	public static <T> Flux<T> concat(Iterable<? extends Publisher<? extends T>> sources) {
-		return onAssembly(new FluxConcatIterable<>(sources));
-	}
-
-	/**
-	 * Concatenates the values to the end of the {@link Flux}
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatWithValues.svg" alt="">
-	 *
-	 * @param values The values to concatenate
-	 *
-	 * @return a new {@link Flux} concatenating all source sequences
-	 */
-	@SafeVarargs
-	public final Flux<T> concatWithValues(T... values) {
-	    return concatWith(Flux.fromArray(values));
-	}
-
-	/**
-	 * Concatenate all sources emitted as an onNext signal from a parent {@link Publisher},
-	 * forwarding elements emitted by the sources downstream.
-	 * <p>
-	 * Concatenation is achieved by sequentially subscribing to the first source then
-	 * waiting for it to complete before subscribing to the next, and so on until the
-	 * last source completes. Any error interrupts the sequence immediately and is
-	 * forwarded downstream.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatAsyncSources.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure upon cancellation.
-	 *
-	 * @param sources The {@link Publisher} of {@link Publisher} to concatenate
-	 * @param <T> The type of values in both source and output sequences
-	 *
-	 * @return a new {@link Flux} concatenating all inner sources sequences
-	 */
-	public static <T> Flux<T> concat(Publisher<? extends Publisher<? extends T>> sources) {
-		return concat(sources, Queues.XS_BUFFER_SIZE);
-	}
-
-	/**
-	 * Concatenate all sources emitted as an onNext signal from a parent {@link Publisher},
-	 * forwarding elements emitted by the sources downstream.
-	 * <p>
-	 * Concatenation is achieved by sequentially subscribing to the first source then
-	 * waiting for it to complete before subscribing to the next, and so on until the
-	 * last source completes. Any error interrupts the sequence immediately and is
-	 * forwarded downstream.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatAsyncSources.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure upon cancellation.
-	 *
-	 * @param sources The {@link Publisher} of {@link Publisher} to concatenate
-	 * @param prefetch the number of Publishers to prefetch from the outer {@link Publisher}
-	 * @param <T> The type of values in both source and output sequences
-	 *
-	 * @return a new {@link Flux} concatenating all inner sources sequences
-	 */
-	public static <T> Flux<T> concat(Publisher<? extends Publisher<? extends T>> sources, int prefetch) {
-		return from(sources).concatMap(identityFunction(), prefetch);
-	}
-
-	/**
-	 * Concatenate all sources provided as a vararg, forwarding elements emitted by the
-	 * sources downstream.
-	 * <p>
-	 * Concatenation is achieved by sequentially subscribing to the first source then
-	 * waiting for it to complete before subscribing to the next, and so on until the
-	 * last source completes. Any error interrupts the sequence immediately and is
-	 * forwarded downstream.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatVarSources.svg" alt="">
-	 *
-	 * @param sources The {@link Publisher} of {@link Publisher} to concat
-	 * @param <T> The type of values in both source and output sequences
-	 *
-	 * @return a new {@link Flux} concatenating all source sequences
-	 */
-	@SafeVarargs
-	public static <T> Flux<T> concat(Publisher<? extends T>... sources) {
-		return onAssembly(new FluxConcatArray<>(false, sources));
-	}
-
-	/**
-	 * Concatenate all sources emitted as an onNext signal from a parent {@link Publisher},
-	 * forwarding elements emitted by the sources downstream.
-	 * <p>
-	 * Concatenation is achieved by sequentially subscribing to the first source then
-	 * waiting for it to complete before subscribing to the next, and so on until the
-	 * last source completes. Errors do not interrupt the main sequence but are propagated
-	 * after the rest of the sources have had a chance to be concatenated.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatAsyncSources.svg" alt="">
-	 *
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure upon cancellation.
-	 *
-	 * @param sources The {@link Publisher} of {@link Publisher} to concatenate
-	 * @param <T> The type of values in both source and output sequences
-	 *
-	 * @return a new {@link Flux} concatenating all inner sources sequences, delaying errors
-	 */
-	public static <T> Flux<T> concatDelayError(Publisher<? extends Publisher<? extends T>> sources) {
-		return concatDelayError(sources, Queues.XS_BUFFER_SIZE);
-	}
-
-	/**
-	 * Concatenate all sources emitted as an onNext signal from a parent {@link Publisher},
-	 * forwarding elements emitted by the sources downstream.
-	 * <p>
-	 * Concatenation is achieved by sequentially subscribing to the first source then
-	 * waiting for it to complete before subscribing to the next, and so on until the
-	 * last source completes. Errors do not interrupt the main sequence but are propagated
-	 * after the rest of the sources have had a chance to be concatenated.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatAsyncSources.svg" alt="">
-	 * <p>
-	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure upon cancellation.
-	 *
-	 * @param sources The {@link Publisher} of {@link Publisher} to concatenate
-	 * @param prefetch number of elements to prefetch from the source, to be turned into inner Publishers
-	 * @param <T> The type of values in both source and output sequences
-	 *
-	 * @return a new {@link Flux} concatenating all inner sources sequences until complete or error
-	 */
-	public static <T> Flux<T> concatDelayError(Publisher<? extends Publisher<? extends T>> sources, int prefetch) {
-		return from(sources).concatMapDelayError(identityFunction(), prefetch);
-	}
-
-	/**
-	 * Concatenate all sources emitted as an onNext signal from a parent {@link Publisher},
-	 * forwarding elements emitted by the sources downstream.
-	 * <p>
-	 * Concatenation is achieved by sequentially subscribing to the first source then
-	 * waiting for it to complete before subscribing to the next, and so on until the
-	 * last source completes.
-	 * <p>
-	 * Errors do not interrupt the main sequence but are propagated after the current
-	 * concat backlog if {@code delayUntilEnd} is {@literal false} or after all sources
-	 * have had a chance to be concatenated if {@code delayUntilEnd} is {@literal true}.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatAsyncSources.svg" alt="">
-	 * <p>
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure upon cancellation.
-	 *
-	 * @param sources The {@link Publisher} of {@link Publisher} to concatenate
-	 * @param delayUntilEnd delay error until all sources have been consumed instead of
-	 * after the current source
-	 * @param prefetch the number of Publishers to prefetch from the outer {@link Publisher}
-	 * @param <T> The type of values in both source and output sequences
-	 *
-	 * @return a new {@link Flux} concatenating all inner sources sequences until complete or error
-	 */
-	public static <T> Flux<T> concatDelayError(Publisher<? extends Publisher<? extends
-			T>> sources, boolean delayUntilEnd, int prefetch) {
-		return from(sources).concatMapDelayError(identityFunction(), delayUntilEnd, prefetch);
-	}
-
-	/**
-	 * Concatenate all sources provided as a vararg, forwarding elements emitted by the
-	 * sources downstream.
-	 * <p>
-	 * Concatenation is achieved by sequentially subscribing to the first source then
-	 * waiting for it to complete before subscribing to the next, and so on until the
-	 * last source completes. Errors do not interrupt the main sequence but are propagated
-	 * after the rest of the sources have had a chance to be concatenated.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatVarSources.svg" alt="">
-	 * <p>
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure upon cancellation.
-	 *
-	 * @param sources The {@link Publisher} of {@link Publisher} to concat
-	 * @param <T> The type of values in both source and output sequences
-	 *
-	 * @return a new {@link Flux} concatenating all source sequences
-	 */
-	@SafeVarargs
-	public static <T> Flux<T> concatDelayError(Publisher<? extends T>... sources) {
-		return onAssembly(new FluxConcatArray<>(true, sources));
 	}
 
 	/**
@@ -3898,7 +3821,21 @@ public abstract class Flux<T> implements CorePublisher<T> {
 
 			return fluxConcatArray.concatAdditionalSourceLast(other);
 		}
-		return concat(this, other);
+		return fromConcatening().allOf(this, other);
+	}
+
+	/**
+	 * Concatenates the values to the end of the {@link Flux}
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/concatWithValues.svg" alt="">
+	 *
+	 * @param values The values to concatenate
+	 *
+	 * @return a new {@link Flux} concatenating all source sequences
+	 */
+	@SafeVarargs
+	public final Flux<T> concatWithValues(T... values) {
+		return concatWith(Flux.fromArray(values));
 	}
 
 	/**
