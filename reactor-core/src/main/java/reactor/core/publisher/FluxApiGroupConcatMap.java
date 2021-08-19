@@ -46,7 +46,7 @@ public final class FluxApiGroupConcatMap<T> {
 	 * preserving order using concatenation.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link Flux#flatMaps()} (and their {@link FluxApiGroupFlatMap#mapSequential(Function) flatMapSequential}
+	 * {@link Flux#flatMaps()} (and their {@link FluxApiGroupFlatMap#sequential(Function) flatMapSequential}
 	 * variants):
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator waits for one
@@ -71,6 +71,7 @@ public final class FluxApiGroupConcatMap<T> {
 	 *
 	 * @return a concatenated {@link Flux}
 	 */
+	//FIXME find a better naming ? or should we use similar naming for FluxApiGroupFlatMap#interleaved ?
 	public <V> Flux<V> map(Function<? super T, ? extends Publisher<? extends V>> mapper) {
 		return map(mapper, Queues.XS_BUFFER_SIZE);
 	}
@@ -81,7 +82,7 @@ public final class FluxApiGroupConcatMap<T> {
 	 * preserving order using concatenation.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link Flux#flatMaps()} (and their {@link FluxApiGroupFlatMap#mapSequential(Function) flatMapSequential}
+	 * {@link Flux#flatMaps()} (and their {@link FluxApiGroupFlatMap#sequential(Function) flatMapSequential}
 	 * variants):
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator waits for one
@@ -122,7 +123,7 @@ public final class FluxApiGroupConcatMap<T> {
 	 * preserving order using concatenation.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link Flux#flatMaps()} (and their {@link FluxApiGroupFlatMap#mapSequential(Function) flatMapSequential}
+	 * {@link Flux#flatMaps()} (and their {@link FluxApiGroupFlatMap#sequential(Function) flatMapSequential}
 	 * variants):
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator waits for one
@@ -159,7 +160,7 @@ public final class FluxApiGroupConcatMap<T> {
 	 * preserving order using concatenation.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link Flux#flatMaps()} (and their {@link FluxApiGroupFlatMap#mapSequential(Function) flatMapSequential}
+	 * {@link Flux#flatMaps()} (and their {@link FluxApiGroupFlatMap#sequential(Function) flatMapSequential}
 	 * variants):
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator waits for one
@@ -198,7 +199,7 @@ public final class FluxApiGroupConcatMap<T> {
 	 * preserving order using concatenation.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link Flux#flatMaps()} (and their {@link FluxApiGroupFlatMap#mapSequential(Function) flatMapSequential}
+	 * {@link Flux#flatMaps()} (and their {@link FluxApiGroupFlatMap#sequential(Function) flatMapSequential}
 	 * variants):
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator waits for one
@@ -252,9 +253,9 @@ public final class FluxApiGroupConcatMap<T> {
 	 * calls per iterable. This second invocation is skipped on a {@link Collection} however, a type which is
 	 * assumed to be always finite.
 	 * <p>
-	 * Note that unlike {@link FluxApiGroupFlatMap#map(Function)} and {@link #map(Function)}, with Iterable there is
+	 * Note that unlike {@link FluxApiGroupFlatMap#interleaved(Function)} and {@link #map(Function)}, with Iterable there is
 	 * no notion of eager vs lazy inner subscription. The content of the Iterables are all played sequentially.
-	 * Thus {@code flatMapIterable} and {@code concatMapIterable} are equivalent offered for discoverability
+	 * Thus, both this method and {@link FluxApiGroupFlatMap#iterables(Function)} are equivalent offered for discoverability
 	 * through both {@link Flux#concatMaps()} and {@link Flux#flatMaps()}.
 	 *
 	 * <p><strong>Discard Support:</strong> Upon cancellation, this operator discards {@code T} elements it prefetched and, in
@@ -272,8 +273,8 @@ public final class FluxApiGroupConcatMap<T> {
 	 *
 	 * @return a concatenation of the values from the Iterables obtained from each element in this {@link Flux}
 	 */
-	public <R> Flux<R> mapIterable(Function<? super T, ? extends Iterable<? extends R>> mapper) {
-		return mapIterable(mapper, Queues.XS_BUFFER_SIZE);
+	public <R> Flux<R> iterables(Function<? super T, ? extends Iterable<? extends R>> mapper) {
+		return iterables(mapper, Queues.XS_BUFFER_SIZE);
 	}
 
 	/**
@@ -291,10 +292,10 @@ public final class FluxApiGroupConcatMap<T> {
 	 * calls per iterable. This second invocation is skipped on a {@link Collection} however, a type which is
 	 * assumed to be always finite.
 	 * <p>
-	 * Note that unlike {@link FluxApiGroupFlatMap#map(Function)} and {@link #map(Function)}, with Iterable there is
+	 * Note that unlike {@link FluxApiGroupFlatMap#interleaved(Function)} and {@link #map(Function)}, with Iterable there is
 	 * no notion of eager vs lazy inner subscription. The content of the Iterables are all played sequentially.
-	 * Thus {@code flatMapIterable} and {@code concatMapIterable} are equivalent offered as a discoverability
-	 * improvement for users that explore the API with the concat vs flatMap expectation.
+	 * Thus, both this method and {@link FluxApiGroupFlatMap#iterables(Function)} are equivalent offered for discoverability
+	 * through both {@link Flux#concatMaps()} and {@link Flux#flatMaps()}.
 	 *
 	 * <p><strong>Discard Support:</strong> Upon cancellation, this operator discards {@code T} elements it prefetched and, in
 	 * some cases, attempts to discard remainder of the currently processed {@link Iterable} (if it can
@@ -312,7 +313,7 @@ public final class FluxApiGroupConcatMap<T> {
 	 *
 	 * @return a concatenation of the values from the Iterables obtained from each element in this {@link Flux}
 	 */
-	public <R> Flux<R> mapIterable(Function<? super T, ? extends Iterable<? extends R>> mapper, int prefetch) {
+	public <R> Flux<R> iterables(Function<? super T, ? extends Iterable<? extends R>> mapper, int prefetch) {
 		return Flux.onAssembly(new FluxFlattenIterable<>(this.source, mapper, prefetch,
 			Queues.get(prefetch)));
 	}

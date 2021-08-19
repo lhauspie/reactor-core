@@ -16,7 +16,9 @@
 
 package reactor.core.publisher;
 
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.Spliterator;
 import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -32,9 +34,10 @@ import reactor.util.context.Context;
 import static reactor.core.publisher.Flux.identityFunction;
 
 /**
+ * A {@link Flux} API sub-group that offers all the flavors of flatMapping operators.
+ *
  * @author Simon Baslé
  */
-//FIXME amend javadoc, ensure Flux methods point to this and not the reverse, ensure Flux javadocs are simplified and pointing to deprecation
 public final class FluxApiGroupFlatMap<T> {
 
 	private final Flux<T> source;
@@ -49,7 +52,7 @@ public final class FluxApiGroupFlatMap<T> {
 	 * which allow them to interleave.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link #mapSequential(Function) flatMapSequential} and {@link Flux#concatMaps()}:
+	 * {@link #sequential(Function) sequential flatMap} and {@link Flux#concatMaps()}:
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator is eagerly
 	 *     subscribing to its inners.</li>
@@ -64,20 +67,19 @@ public final class FluxApiGroupFlatMap<T> {
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements internally queued for backpressure upon cancellation or error triggered by a data signal.
 	 *
-	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
-	 * @param <R> the merged output sequence type
-	 *
-	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
+	 * <p><strong>Error Mode Support:</strong> This operator supports {@link Flux#unsafe()} resuming on errors
 	 * in the mapper {@link Function}. Exceptions thrown by the mapper then behave as if
 	 * it had mapped the value to an empty publisher. If the mapper does map to a scalar
 	 * publisher (an optimization in which the value can be resolved immediately without
 	 * subscribing to the publisher, e.g. a {@link Mono#fromCallable(Callable)}) but said
 	 * publisher throws, this can be resumed from in the same manner.
 	 *
+	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
+	 * @param <R> the merged output sequence type
 	 * @return a new {@link Flux}
 	 */
-	public <R> Flux<R> map(Function<? super T, ? extends Publisher<? extends R>> mapper) {
-		return map(mapper, Queues.SMALL_BUFFER_SIZE, Queues
+	public <R> Flux<R> interleaved(Function<? super T, ? extends Publisher<? extends R>> mapper) {
+		return interleaved(mapper, Queues.SMALL_BUFFER_SIZE, Queues
 			.XS_BUFFER_SIZE);
 	}
 
@@ -87,7 +89,7 @@ public final class FluxApiGroupFlatMap<T> {
 	 * which allow them to interleave.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link #mapSequential(Function) flatMapSequential} and {@link Flux#concatMaps()}:
+	 * {@link #sequential(Function) sequential flatMap} and {@link Flux#concatMaps()}:
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator is eagerly
 	 *     subscribing to its inners.</li>
@@ -106,22 +108,22 @@ public final class FluxApiGroupFlatMap<T> {
 	 * <p><strong>Discard Support:</strong> This operator discards elements internally queued for backpressure upon
 	 * cancellation or error triggered by a data signal.
 	 *
-	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
-	 * @param concurrency the maximum number of in-flight inner sequences
-	 * @param <V> the merged output sequence type
-	 *
-	 * <p><strong>Error Mode Support:</strong> This operator supports {@link Flux#onErrorContinue(BiConsumer) resuming on errors}
+	 * <p><strong>Error Mode Support:</strong> This operator supports {@link Flux#unsafe()} resuming on errors
 	 * in the mapper {@link Function}. Exceptions thrown by the mapper then behave as if
 	 * it had mapped the value to an empty publisher. If the mapper does map to a scalar
 	 * publisher (an optimization in which the value can be resolved immediately without
 	 * subscribing to the publisher, e.g. a {@link Mono#fromCallable(Callable)}) but said
 	 * publisher throws, this can be resumed from in the same manner.
 	 *
+	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
+	 * @param concurrency the maximum number of in-flight inner sequences
+	 * @param <V> the merged output sequence type
+	 *
 	 * @return a new {@link Flux}
 	 */
-	public <V> Flux<V> map(Function<? super T, ? extends Publisher<? extends V>> mapper, int
+	public <V> Flux<V> interleaved(Function<? super T, ? extends Publisher<? extends V>> mapper, int
 		concurrency) {
-		return map(mapper, concurrency, Queues.XS_BUFFER_SIZE);
+		return interleaved(mapper, concurrency, Queues.XS_BUFFER_SIZE);
 	}
 
 	/**
@@ -130,7 +132,7 @@ public final class FluxApiGroupFlatMap<T> {
 	 * which allow them to interleave.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link #mapSequential(Function) flatMapSequential} and {@link Flux#concatMaps()}:
+	 * {@link #sequential(Function) sequential flatMap} and {@link Flux#concatMaps()}:
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator is eagerly
 	 *     subscribing to its inners.</li>
@@ -152,23 +154,23 @@ public final class FluxApiGroupFlatMap<T> {
 	 * <p><strong>Discard Support:</strong> This operator discards elements internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal.
 	 *
-	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
-	 * @param concurrency the maximum number of in-flight inner sequences
-	 * @param prefetch the maximum in-flight elements from each inner {@link Publisher} sequence
-	 * @param <V> the merged output sequence type
-	 *
-	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
+	 * <p><strong>Error Mode Support:</strong> This operator supports {@link Flux#unsafe()} resuming on errors
 	 * in the mapper {@link Function}. Exceptions thrown by the mapper then behave as if
 	 * it had mapped the value to an empty publisher. If the mapper does map to a scalar
 	 * publisher (an optimization in which the value can be resolved immediately without
 	 * subscribing to the publisher, e.g. a {@link Mono#fromCallable(Callable)}) but said
 	 * publisher throws, this can be resumed from in the same manner.
 	 *
+	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
+	 * @param concurrency the maximum number of in-flight inner sequences
+	 * @param prefetch the maximum in-flight elements from each inner {@link Publisher} sequence
+	 * @param <V> the merged output sequence type
+	 *
 	 * @return a merged {@link Flux}
 	 */
-	public <V> Flux<V> map(Function<? super T, ? extends Publisher<? extends V>> mapper, int
+	public <V> Flux<V> interleaved(Function<? super T, ? extends Publisher<? extends V>> mapper, int
 		concurrency, int prefetch) {
-		return map(this.source, mapper, false, concurrency, prefetch);
+		return interleaved(this.source, mapper, false, concurrency, prefetch);
 	}
 
 	/**
@@ -177,7 +179,7 @@ public final class FluxApiGroupFlatMap<T> {
 	 * which allow them to interleave.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link #mapSequential(Function) flatMapSequential} and {@link Flux#concatMaps()}:
+	 * {@link #sequential(Function) sequential flatMap} and {@link Flux#concatMaps()}:
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator is eagerly
 	 *     subscribing to its inners.</li>
@@ -197,23 +199,23 @@ public final class FluxApiGroupFlatMap<T> {
 	 * <p><strong>Discard Support:</strong> This operator discards elements internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal.
 	 *
-	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
-	 * @param concurrency the maximum number of in-flight inner sequences
-	 * @param prefetch the maximum in-flight elements from each inner {@link Publisher} sequence
-	 * @param <V> the merged output sequence type
-	 *
-	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
+	 * <p><strong>Error Mode Support:</strong> This operator supports {@link Flux#unsafe()} resuming on errors
 	 * in the mapper {@link Function}. Exceptions thrown by the mapper then behave as if
 	 * it had mapped the value to an empty publisher. If the mapper does map to a scalar
 	 * publisher (an optimization in which the value can be resolved immediately without
 	 * subscribing to the publisher, e.g. a {@link Mono#fromCallable(Callable)}) but said
 	 * publisher throws, this can be resumed from in the same manner.
 	 *
+	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
+	 * @param concurrency the maximum number of in-flight inner sequences
+	 * @param prefetch the maximum in-flight elements from each inner {@link Publisher} sequence
+	 * @param <V> the merged output sequence type
+	 *
 	 * @return a merged {@link Flux}
 	 */
-	public <V> Flux<V> mapDelayError(Function<? super T, ? extends Publisher<? extends V>> mapper,
-									 int concurrency, int prefetch) {
-		return map(this.source, mapper, true, concurrency, prefetch);
+	public <V> Flux<V> interleavedDelayError(Function<? super T, ? extends Publisher<? extends V>> mapper,
+											 int concurrency, int prefetch) {
+		return interleaved(this.source, mapper, true, concurrency, prefetch);
 	}
 
 	/**
@@ -230,19 +232,19 @@ public final class FluxApiGroupFlatMap<T> {
 	 * calls per iterable. This second invocation is skipped on a {@link Collection} however, a type which is
 	 * assumed to be always finite.
 	 * <p>
-	 * Note that unlike {@link #map(Function)} and {@link #concatMap(Function)}, with Iterable there is
+	 * Note that unlike {@link #interleaved(Function)} and {@link Flux#concatMaps()}, with Iterable there is
 	 * no notion of eager vs lazy inner subscription. The content of the Iterables are all played sequentially.
-	 * Thus {@code flatMapIterable} and {@code concatMapIterable} are equivalent offered as a discoverability
-	 * improvement for users that explore the API with the concat vs flatMap expectation.
+	 * Thus, both this method and {@link FluxApiGroupConcatMap#iterables(Function)} are equivalent offered for discoverability
+	 * through both {@link Flux#concatMaps()} and {@link Flux#flatMaps()}.
 	 *
 	 * <p><strong>Discard Support:</strong> Upon cancellation, this operator discards {@code T} elements it prefetched and, in
 	 * some cases, attempts to discard remainder of the currently processed {@link Iterable} (if it can
 	 * safely ensure the iterator is finite). Note that this means each {@link Iterable}'s {@link Iterable#iterator()}
 	 * method could be invoked twice.
 	 *
-	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
+	 * <p><strong>Error Mode Support:</strong> This operator supports {@link Flux#unsafe()} resuming on errors
 	 * (including when fusion is enabled). Exceptions thrown by the consumer are passed to
-	 * the {@link #onErrorContinue(BiConsumer)} error consumer (the value consumer
+	 * the {@link FluxApiGroupUnsafe#influenceUpstreamToContinueOnErrors(BiConsumer)} error consumer (the value consumer
 	 * is not invoked, as the source element will be part of the sequence). The onNext
 	 * signal is then propagated as normal.
 	 *
@@ -251,8 +253,8 @@ public final class FluxApiGroupFlatMap<T> {
 	 *
 	 * @return a concatenation of the values from the Iterables obtained from each element in this {@link Flux}
 	 */
-	public <R> Flux<R> mapIterable(Function<? super T, ? extends Iterable<? extends R>> mapper) {
-		return mapIterable(mapper, Queues.SMALL_BUFFER_SIZE);
+	public <R> Flux<R> iterables(Function<? super T, ? extends Iterable<? extends R>> mapper) {
+		return iterables(mapper, Queues.SMALL_BUFFER_SIZE);
 	}
 
 	/**
@@ -260,7 +262,6 @@ public final class FluxApiGroupFlatMap<T> {
 	 * merging them into a single {@link Flux}. The prefetch argument allows to give an
 	 * arbitrary prefetch size to the upstream source.
 	 * For each iterable, {@link Iterable#iterator()} will be called at least once and at most twice.
-	 *
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/flatMapIterableForFlux.svg" alt="">
 	 * <p>
@@ -270,19 +271,19 @@ public final class FluxApiGroupFlatMap<T> {
 	 * calls per iterable. This second invocation is skipped on a {@link Collection} however, a type which is
 	 * assumed to be always finite.
 	 * <p>
-	 * Note that unlike {@link #map(Function)} and {@link #concatMap(Function)}, with Iterable there is
+	 * Note that unlike {@link #interleaved(Function)} and {@link FluxApiGroupConcatMap#map(Function)}, with Iterable there is
 	 * no notion of eager vs lazy inner subscription. The content of the Iterables are all played sequentially.
-	 * Thus {@code flatMapIterable} and {@code concatMapIterable} are equivalent offered as a discoverability
-	 * improvement for users that explore the API with the concat vs flatMap expectation.
+	 * Thus, both this method and {@link FluxApiGroupConcatMap#iterables(Function)} are equivalent offered for discoverability
+	 * through both {@link Flux#concatMaps()} and {@link Flux#flatMaps()}.
 	 *
 	 * <p><strong>Discard Support:</strong> Upon cancellation, this operator discards {@code T} elements it prefetched and, in
 	 * some cases, attempts to discard remainder of the currently processed {@link Iterable} (if it can
 	 * safely ensure the iterator is finite).
 	 * Note that this means each {@link Iterable}'s {@link Iterable#iterator()} method could be invoked twice.
 	 *
-	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
+	 * <p><strong>Error Mode Support:</strong> This operator supports {@link Flux#unsafe()} resuming on errors
 	 * (including when fusion is enabled). Exceptions thrown by the consumer are passed to
-	 * the {@link #onErrorContinue(BiConsumer)} error consumer (the value consumer
+	 * the {@link FluxApiGroupUnsafe#influenceUpstreamToContinueOnErrors(BiConsumer)}  error consumer (the value consumer
 	 * is not invoked, as the source element will be part of the sequence). The onNext
 	 * signal is then propagated as normal.
 	 *
@@ -292,8 +293,8 @@ public final class FluxApiGroupFlatMap<T> {
 	 *
 	 * @return a concatenation of the values from the Iterables obtained from each element in this {@link Flux}
 	 */
-	public <R> Flux<R> mapIterable(Function<? super T, ? extends Iterable<? extends R>> mapper,
-								   int prefetch) {
+	public <R> Flux<R> iterables(Function<? super T, ? extends Iterable<? extends R>> mapper,
+								 int prefetch) {
 		return Flux.onAssembly(new FluxFlattenIterable<>(this.source, mapper, prefetch,
 			Queues.get(prefetch)));
 	}
@@ -304,7 +305,7 @@ public final class FluxApiGroupFlatMap<T> {
 	 * the order of their source element.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link #map(Function) flatMap} and {@link Flux#concatMaps()}:
+	 * {@link #interleaved(Function) "classic" flatMap} and {@link Flux#concatMaps()}:
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator is eagerly
 	 *     subscribing to its inners (like flatMap).</li>
@@ -330,9 +331,9 @@ public final class FluxApiGroupFlatMap<T> {
 	 *
 	 * @return a merged {@link Flux}, subscribing early but keeping the original ordering
 	 */
-	public <R> Flux<R> mapSequential(Function<? super T, ? extends
+	public <R> Flux<R> sequential(Function<? super T, ? extends
 		Publisher<? extends R>> mapper) {
-		return mapSequential(mapper, Queues.SMALL_BUFFER_SIZE);
+		return sequential(mapper, Queues.SMALL_BUFFER_SIZE);
 	}
 
 	/**
@@ -341,7 +342,7 @@ public final class FluxApiGroupFlatMap<T> {
 	 * the order of their source element.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link #map(Function) flatMap} and {@link Flux#concatMaps()}:
+	 * {@link #interleaved(Function) "classic" flatMap} and {@link Flux#concatMaps()}:
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator is eagerly
 	 *     subscribing to its inners (like flatMap).</li>
@@ -371,9 +372,9 @@ public final class FluxApiGroupFlatMap<T> {
 	 *
 	 * @return a merged {@link Flux}, subscribing early but keeping the original ordering
 	 */
-	public <R> Flux<R> mapSequential(Function<? super T, ? extends
+	public <R> Flux<R> sequential(Function<? super T, ? extends
 		Publisher<? extends R>> mapper, int maxConcurrency) {
-		return mapSequential(mapper, maxConcurrency, Queues.XS_BUFFER_SIZE);
+		return sequential(mapper, maxConcurrency, Queues.XS_BUFFER_SIZE);
 	}
 
 	/**
@@ -382,7 +383,7 @@ public final class FluxApiGroupFlatMap<T> {
 	 * the order of their source element.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link #map(Function) flatMap} and {@link Flux#concatMaps()}:
+	 * {@link #interleaved(Function) "classic" flatMap} and {@link Flux#concatMaps()}:
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator is eagerly
 	 *     subscribing to its inners (like flatMap).</li>
@@ -415,9 +416,9 @@ public final class FluxApiGroupFlatMap<T> {
 	 *
 	 * @return a merged {@link Flux}, subscribing early but keeping the original ordering
 	 */
-	public <R> Flux<R> mapSequential(Function<? super T, ? extends
+	public <R> Flux<R> sequential(Function<? super T, ? extends
 		Publisher<? extends R>> mapper, int maxConcurrency, int prefetch) {
-		return mapSequential(this.source, mapper, false, maxConcurrency, prefetch);
+		return sequential(this.source, mapper, false, maxConcurrency, prefetch);
 	}
 
 	/**
@@ -426,7 +427,7 @@ public final class FluxApiGroupFlatMap<T> {
 	 * the order of their source element.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link #map(Function) flatMap} and {@link Flux#concatMaps()}:
+	 * {@link #interleaved(Function) "classic" flatMap} and {@link Flux#concatMaps()}:
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator is eagerly
 	 *     subscribing to its inners (like flatMap).</li>
@@ -460,9 +461,9 @@ public final class FluxApiGroupFlatMap<T> {
 	 *
 	 * @return a merged {@link Flux}, subscribing early but keeping the original ordering
 	 */
-	public <R> Flux<R> mapSequentialDelayError(Function<? super T, ? extends
+	public <R> Flux<R> sequentialDelayError(Function<? super T, ? extends
 		Publisher<? extends R>> mapper, int maxConcurrency, int prefetch) {
-		return mapSequential(this.source, mapper, true, maxConcurrency, prefetch);
+		return sequential(this.source, mapper, true, maxConcurrency, prefetch);
 	}
 
 
@@ -473,7 +474,7 @@ public final class FluxApiGroupFlatMap<T> {
 	 * be provided, and all provided mappers must produce a publisher.
 	 * <p>
 	 * There are three dimensions to this operator that can be compared with
-	 * {@link #mapSequential(Function) flatMapSequential} and {@link Flux#concatMaps()}:
+	 * {@link #sequential(Function) sequential flatMap} and {@link Flux#concatMaps()}:
 	 * <ul>
 	 *     <li><b>Generation of inners and subscription</b>: this operator is eagerly
 	 *     subscribing to its inners.</li>
@@ -497,10 +498,9 @@ public final class FluxApiGroupFlatMap<T> {
 	 *
 	 * @return a new {@link Flux}
 	 */
-	public <R> Flux<R> mapSignals(
-		@Nullable Function<? super T, ? extends Publisher<? extends R>> mapperOnNext,
-		@Nullable Function<? super Throwable, ? extends Publisher<? extends R>> mapperOnError,
-		@Nullable Supplier<? extends Publisher<? extends R>> mapperOnComplete) {
+	public <R> Flux<R> signals(@Nullable Function<? super T, ? extends Publisher<? extends R>> mapperOnNext,
+							   @Nullable Function<? super Throwable, ? extends Publisher<? extends R>> mapperOnError,
+							   @Nullable Supplier<? extends Publisher<? extends R>> mapperOnComplete) {
 		return Flux.onAssembly(new FluxFlatMap<>(
 			new FluxMapSignal<>(this.source, mapperOnNext, mapperOnError, mapperOnComplete),
 			identityFunction(),
@@ -510,8 +510,8 @@ public final class FluxApiGroupFlatMap<T> {
 		));
 	}
 
-	private static <T, V> Flux<V> map(Flux<T> source, Function<? super T, ? extends Publisher<? extends
-		V>> mapper, boolean delayError, int concurrency, int prefetch) {
+	private static <T, V> Flux<V> interleaved(Flux<T> source, Function<? super T, ? extends Publisher<? extends V>> mapper,
+											  boolean delayError, int concurrency, int prefetch) {
 		return Flux.onAssembly(new FluxFlatMap<>(
 			source,
 			mapper,
@@ -523,8 +523,8 @@ public final class FluxApiGroupFlatMap<T> {
 		));
 	}
 
-	private static <T, R> Flux<R> mapSequential(Flux<T> source, Function<? super T, ? extends
-		Publisher<? extends R>> mapper, boolean delayError, int maxConcurrency, int prefetch) {
+	private static <T, R> Flux<R> sequential(Flux<T> source, Function<? super T, ? extends Publisher<? extends R>> mapper,
+											 boolean delayError, int maxConcurrency, int prefetch) {
 		return Flux.onAssembly(new FluxMergeSequential<>(source, mapper, maxConcurrency,
 			prefetch, delayError ? FluxConcatMap.ErrorMode.END :
 			FluxConcatMap.ErrorMode.IMMEDIATE));
