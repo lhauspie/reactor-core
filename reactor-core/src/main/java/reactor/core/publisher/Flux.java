@@ -2281,6 +2281,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 		return new FluxApiGroupDoOnCommon<>(this);
 	}
 
+	/**
+	 * @return a {@link FluxApiGroupLog} instance to further configure logging
+	 */
+	public final FluxApiGroupLog<T> logAtLevel(Level level) {
+		return new FluxApiGroupLog<>(this, level);
+	}
+
 	public final FluxApiGroupUnsafe<T> unsafe() {
 		return new FluxApiGroupUnsafe<>(this);
 	}
@@ -4081,53 +4088,45 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	}
 
 	/**
-	 * Add behavior (side-effect) triggered after the {@link Flux} terminates, either by completing downstream successfully or with an error.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/doAfterTerminateForFlux.svg" alt="">
-	 * <p>
-	 * The relevant signal is propagated downstream, then the {@link Runnable} is executed.
+	 * See {@link FluxApiGroupDoOnAdvanced#afterTerminate(Runnable)}.
 	 *
 	 * @param afterTerminate the callback to call after {@link Subscriber#onComplete} or {@link Subscriber#onError}
 	 *
 	 * @return an observed  {@link Flux}
+	 * @deprecated Use {@link #doOn()} {@link FluxApiGroupDoOnCommon#advanced()} {@link FluxApiGroupDoOnAdvanced#afterTerminate(Runnable)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> doAfterTerminate(Runnable afterTerminate) {
-		Objects.requireNonNull(afterTerminate, "afterTerminate");
-		return doOnSignal(this, null, null, null, null, afterTerminate, null, null);
+		return doOn().advanced().afterTerminate(afterTerminate);
 	}
 
 	/**
-	 * Add behavior (side-effect) triggered when the {@link Flux} is cancelled.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/doOnCancelForFlux.svg" alt="">
-	 * <p>
-	 * The handler is executed first, then the cancel signal is propagated upstream
-	 * to the source.
+	 * See {@link FluxApiGroupDoOnAdvanced#onCancel(Runnable)}.
 	 *
 	 * @param onCancel the callback to call on {@link Subscription#cancel}
 	 *
 	 * @return an observed  {@link Flux}
+	 * @deprecated Use {@link #doOn()} {@link FluxApiGroupDoOnCommon#advanced()} {@link FluxApiGroupDoOnAdvanced#onCancel(Runnable)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> doOnCancel(Runnable onCancel) {
-		Objects.requireNonNull(onCancel, "onCancel");
-		return doOnSignal(this, null, null, null, null, null, null, onCancel);
+		return doOn().advanced().onCancel(onCancel);
 	}
 
 	/**
-	 * Add behavior (side-effect) triggered when the {@link Flux} completes successfully.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/doOnComplete.svg" alt="">
-	 * <p>
-	 * The {@link Runnable} is executed first, then the onComplete signal is propagated
-	 * downstream.
+	 * See {@link FluxApiGroupDoOnCommon#complete(Runnable)}.
 	 *
 	 * @param onComplete the callback to call on {@link Subscriber#onComplete}
 	 *
 	 * @return an observed  {@link Flux}
+	 * @deprecated Use DOON {@link FluxApiGroupDoOnCommon#complete(Runnable)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> doOnComplete(Runnable onComplete) {
-		Objects.requireNonNull(onComplete, "onComplete");
-		return doOnSignal(this, null, null, null, onComplete, null, null, null);
+		return doOn().complete(onComplete);
 	}
 
 	/**
@@ -4139,7 +4138,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * that performs the cleanup.
 	 * @return a {@link Flux} that cleans up matching elements that get discarded upstream of it.
 	 *
-	 * @deprecated Use {@link #unsafe()} and replace with {@link FluxApiGroupUnsafe#influenceUpstreamToDiscardUsing(Class, Consumer)}
+	 * @deprecated Use {@link #unsafe()} and replace with {@link FluxApiGroupUnsafe#influenceUpstreamToDiscardUsing(Class, Consumer)}.
 	 * To be aggressively removed in 4.1.0.
 	 */
 	@Deprecated
@@ -4148,190 +4147,122 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	}
 
 	/**
-	 * Add behavior (side-effects) triggered when the {@link Flux} emits an item, fails with an error
-	 * or completes successfully. All these events are represented as a {@link Signal}
-	 * that is passed to the side-effect callback. Note that this is an advanced operator,
-	 * typically used for monitoring of a Flux. These {@link Signal} have a {@link Context}
-	 * associated to them.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/doOnEachForFlux.svg" alt="">
-	 * <p>
-	 * The {@link Consumer} is executed first, then the relevant signal is propagated
-	 * downstream.
+	 * See {@link FluxApiGroupDoOnCommon#each(Consumer)}.
 	 *
 	 * @param signalConsumer the mandatory callback to call on
 	 *   {@link Subscriber#onNext(Object)}, {@link Subscriber#onError(Throwable)} and
 	 *   {@link Subscriber#onComplete()}
 	 * @return an observed {@link Flux}
-	 * @see #doOnNext(Consumer)
-	 * @see #doOnError(Consumer)
-	 * @see #doOnComplete(Runnable)
-	 * @see #materialize()
-	 * @see Signal
+	 * @deprecated Use DOON See {@link FluxApiGroupDoOnCommon#each(Consumer)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> doOnEach(Consumer<? super Signal<T>> signalConsumer) {
-		if (this instanceof Fuseable) {
-			return onAssembly(new FluxDoOnEachFuseable<>(this, signalConsumer));
-		}
-		return onAssembly(new FluxDoOnEach<>(this, signalConsumer));
+		return doOn().each(signalConsumer);
 	}
 
 	/**
-	 * Add behavior (side-effect) triggered when the {@link Flux} completes with an error.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/doOnErrorForFlux.svg" alt="">
-	 * <p>
-	 * The {@link Consumer} is executed first, then the onError signal is propagated
-	 * downstream.
+	 * See {@link FluxApiGroupDoOnCommon#error(Consumer)}.
 	 *
 	 * @param onError the callback to call on {@link Subscriber#onError}
 	 *
 	 * @return an observed  {@link Flux}
+	 * @deprecated Use DOON {@link FluxApiGroupDoOnCommon#error(Consumer)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> doOnError(Consumer<? super Throwable> onError) {
-		Objects.requireNonNull(onError, "onError");
-		return doOnSignal(this, null, null, onError, null, null, null, null);
+		return doOn().error(onError);
 	}
 
 	/**
-	 * Add behavior (side-effect) triggered when the {@link Flux} completes with an error matching the given exception type.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/doOnErrorWithClassPredicateForFlux.svg" alt="">
-	 * <p>
-	 * The {@link Consumer} is executed first, then the onError signal is propagated
-	 * downstream.
+	 * See {@link FluxApiGroupDoOnAdvanced#onError(Class, Consumer)}.
 	 *
 	 * @param exceptionType the type of exceptions to handle
 	 * @param onError the error handler for each error
 	 * @param <E> type of the error to handle
 	 *
 	 * @return an observed  {@link Flux}
-	 *
+	 * @deprecated Use {@link #doOn()} {@link FluxApiGroupDoOnCommon#advanced()} {@link FluxApiGroupDoOnAdvanced#onError(Class, Consumer)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <E extends Throwable> Flux<T> doOnError(Class<E> exceptionType,
 			final Consumer<? super E> onError) {
-		Objects.requireNonNull(exceptionType, "type");
-		@SuppressWarnings("unchecked")
-		Consumer<Throwable> handler = (Consumer<Throwable>)onError;
-		return doOnError(exceptionType::isInstance, (handler));
+		return doOn().advanced().onError(exceptionType, onError);
 	}
 
 	/**
-	 * Add behavior (side-effect) triggered when the {@link Flux} completes with an error matching the given exception.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/doOnErrorWithPredicateForFlux.svg" alt="">
-	 * <p>
-	 * The {@link Consumer} is executed first, then the onError signal is propagated
-	 * downstream.
+	 * See {@link FluxApiGroupDoOnAdvanced#onError(Predicate, Consumer)}.
 	 *
 	 * @param predicate the matcher for exceptions to handle
 	 * @param onError the error handler for each error
 	 *
 	 * @return an observed  {@link Flux}
+	 * @deprecated Use {@link #doOn()} {@link FluxApiGroupDoOnCommon#advanced()} {@link FluxApiGroupDoOnAdvanced#onError(Predicate, Consumer)}.
+	 * To be aggressively removed in 4.1.0.
 	 *
 	 */
+	@Deprecated
 	public final Flux<T> doOnError(Predicate<? super Throwable> predicate,
 			final Consumer<? super Throwable> onError) {
-		Objects.requireNonNull(predicate, "predicate");
-		return doOnError(t -> {
-			if (predicate.test(t)) {
-				onError.accept(t);
-			}
-		});
+		return doOn().advanced().onError(predicate, onError);
 	}
 
 	/**
-	 * Add behavior (side-effect) triggered when the {@link Flux} emits an item.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/doOnNextForFlux.svg" alt="">
-	 * <p>
-	 * The {@link Consumer} is executed first, then the onNext signal is propagated
-	 * downstream.
+	 * See {@link FluxApiGroupDoOnCommon#next(Consumer)}.
 	 *
 	 * @param onNext the callback to call on {@link Subscriber#onNext}
 	 *
-	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
-	 * (including when fusion is enabled). Exceptions thrown by the consumer are passed to
-	 * the {@link #onErrorContinue(BiConsumer)} error consumer (the value consumer
-	 * is not invoked, as the source element will be part of the sequence). The onNext
-	 * signal is then propagated as normal.
-	 *
 	 * @return an observed  {@link Flux}
+	 * @deprecated Use DOON {@link FluxApiGroupDoOnCommon#next(Consumer)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> doOnNext(Consumer<? super T> onNext) {
-		Objects.requireNonNull(onNext, "onNext");
-		return doOnSignal(this, null, onNext, null, null, null, null, null);
+		return doOn().next(onNext);
 	}
 
 	/**
-	 * Add behavior (side-effect) triggering a {@link LongConsumer} when this {@link Flux}
-	 * receives any request.
-	 * <p>
-	 *     Note that non fatal error raised in the callback will not be propagated and
-	 *     will simply trigger {@link Operators#onOperatorError(Throwable, Context)}.
-	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/doOnRequestForFlux.svg" alt="">
-	 * <p>
-	 * The {@link LongConsumer} is executed first, then the request signal is propagated
-	 * upstream to the parent.
+	 * See {@link FluxApiGroupDoOnAdvanced#onRequest(LongConsumer)}.
 	 *
 	 * @param consumer the consumer to invoke on each request
 	 *
 	 * @return an observed  {@link Flux}
+	 * @deprecated Use {@link #doOn()} {@link FluxApiGroupDoOnCommon#advanced()} {@link FluxApiGroupDoOnAdvanced#onRequest(LongConsumer)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> doOnRequest(LongConsumer consumer) {
-		Objects.requireNonNull(consumer, "consumer");
-		return doOnSignal(this, null, null, null, null, null, consumer, null);
+		return doOn().advanced().onRequest(consumer);
 	}
 
 	/**
-	 * Add behavior (side-effect) triggered when the {@link Flux} is being subscribed,
-	 * that is to say when a {@link Subscription} has been produced by the {@link Publisher}
-	 * and is being passed to the {@link Subscriber#onSubscribe(Subscription)}.
-	 * <p>
-	 * This method is <strong>not</strong> intended for capturing the subscription and calling its methods,
-	 * but for side effects like monitoring. For instance, the correct way to cancel a subscription is
-	 * to call {@link Disposable#dispose()} on the Disposable returned by {@link Flux#subscribe()}.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/doOnSubscribe.svg" alt="">
-	 * <p>
-	 * The {@link Consumer} is executed first, then the {@link Subscription} is propagated
-	 * downstream to the next subscriber in the chain that is being established.
+	 * See {@link FluxApiGroupDoOnAdvanced#onSubscribe(Consumer)}.
 	 *
 	 * @param onSubscribe the callback to call on {@link Subscriber#onSubscribe}
 	 *
 	 * @return an observed  {@link Flux}
 	 * @see #doFirst(Runnable)
+	 * @deprecated Use {@link #doOn()} {@link FluxApiGroupDoOnCommon#advanced()} {@link FluxApiGroupDoOnAdvanced#onSubscribe(Consumer)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> doOnSubscribe(Consumer<? super Subscription> onSubscribe) {
-		Objects.requireNonNull(onSubscribe, "onSubscribe");
-		return doOnSignal(this, onSubscribe, null, null, null, null, null, null);
+		return doOn().advanced().onSubscribe(onSubscribe);
 	}
 
 	/**
-	 * Add behavior (side-effect) triggered when the {@link Flux} terminates, either by
-	 * completing successfully or failing with an error.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/doOnTerminateForFlux.svg" alt="">
-	 * <p>
-	 * The {@link Runnable} is executed first, then the onComplete/onError signal is propagated
-	 * downstream.
+	 * See {@link FluxApiGroupDoOnCommon#terminate(Runnable)}.
 	 *
 	 * @param onTerminate the callback to call on {@link Subscriber#onComplete} or {@link Subscriber#onError}
 	 *
 	 * @return an observed  {@link Flux}
+	 * @deprecated Use DOON {@link FluxApiGroupDoOnCommon#terminate(Runnable)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
 	public final Flux<T> doOnTerminate(Runnable onTerminate) {
-		Objects.requireNonNull(onTerminate, "onTerminate");
-		return doOnSignal(this,
-				null,
-				null,
-				e -> onTerminate.run(),
-				onTerminate,
-				null,
-				null,
-				null);
+		return doOn().terminate(onTerminate);
 	}
 
 	/**
@@ -5392,9 +5323,10 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * the source operator, e.g. "reactor.Flux.Map".
 	 *
 	 * @return a new {@link Flux} that logs signals
+	 * @see #logAtLevel(Level) 
 	 */
 	public final Flux<T> log() {
-		return log(null, Level.INFO);
+		return logAtLevel(Level.INFO).withOperatorName();
 	}
 
 	/**
@@ -5409,23 +5341,15 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * suffix will be added, e.g. "reactor.Flux.Map".
 	 *
 	 * @return a new {@link Flux} that logs signals
+	 * @see #logAtLevel(Level)
 	 */
 	public final Flux<T> log(String category) {
-		return log(category, Level.INFO);
+		return logAtLevel(Level.INFO).usingCategory(category);
 	}
 
 	/**
-	 * Observe Reactive Streams signals matching the passed filter {@code options} and
-	 * trace them using {@link Logger} support. Default will use {@link Level#INFO} and
-	 * {@code java.util.logging}. If SLF4J is available, it will be used instead.
-	 * <p>
-	 * Options allow fine grained filtering of the traced signal, for instance to only
-	 * capture onNext and onError:
-	 * <pre>
-	 *     flux.log("category", Level.INFO, SignalType.ON_NEXT, SignalType.ON_ERROR)
-	 * </pre>
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/logForFlux.svg" alt="">
+	 * See {@link FluxApiGroupLog#withOperatorName(SignalType...)}
+	 * or {@link FluxApiGroupLog#usingCategory(String, SignalType...)}.
 	 *
 	 * @param category to be mapped into logger configuration (e.g. org.springframework
 	 * .reactor). If category ends with "." like "reactor.", a generated operator
@@ -5435,23 +5359,21 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * @param options a vararg {@link SignalType} option to filter log messages
 	 *
 	 * @return a new {@link Flux} that logs signals
+	 * @deprecated Use {@link #logAtLevel(Level)} {@link FluxApiGroupLog#withOperatorName(SignalType...)}
+	 * or {@link FluxApiGroupLog#usingCategory(String, SignalType...)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> log(@Nullable String category, Level level, SignalType... options) {
-		return log(category, level, false, options);
+		if (category == null) {
+			return logAtLevel(level).withOperatorName(options);
+		}
+		return logAtLevel(level).usingCategory(category, options);
 	}
 
 	/**
-	 * Observe Reactive Streams signals matching the passed filter {@code options} and
-	 * trace them using {@link Logger} support. Default will use {@link Level#INFO} and
-	 * {@code java.util.logging}. If SLF4J is available, it will be used instead.
-	 * <p>
-	 * Options allow fine grained filtering of the traced signal, for instance to only
-	 * capture onNext and onError:
-	 * <pre>
-	 *     flux.log("category", Level.INFO, SignalType.ON_NEXT, SignalType.ON_ERROR)
-	 * </pre>
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/logForFlux.svg" alt="">
+	 * See {@link FluxApiGroupLog#withOperatorName(boolean, SignalType...)}
+	 * or {@link FluxApiGroupLog#usingCategory(String, boolean, SignalType...)}.
 	 *
 	 * @param category to be mapped into logger configuration (e.g. org.springframework
 	 * .reactor). If category ends with "." like "reactor.", a generated operator
@@ -5462,45 +5384,37 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * @param options a vararg {@link SignalType} option to filter log messages
 	 *
 	 * @return a new {@link Flux} that logs signals
+	 * @deprecated Use {@link #logAtLevel(Level)} {@link FluxApiGroupLog#withOperatorName(boolean, SignalType...)}
+	 * or {@link FluxApiGroupLog#usingCategory(String, boolean, SignalType...)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> log(@Nullable String category,
 			Level level,
 			boolean showOperatorLine,
 			SignalType... options) {
-		SignalLogger<T> log = new SignalLogger<>(this, category, level,
-				showOperatorLine, options);
-
-		if (this instanceof Fuseable) {
-			return onAssembly(new FluxLogFuseable<>(this, log));
+		if (category == null) {
+			return logAtLevel(level).withOperatorName(showOperatorLine, options);
 		}
-		return onAssembly(new FluxLog<>(this, log));
+		return logAtLevel(level).usingCategory(category, showOperatorLine, options);
 	}
 
 	/**
-	 * Observe Reactive Streams signals matching the passed filter {@code options} and
-	 * trace them using a specific user-provided {@link Logger}, at {@link Level#INFO} level.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/logForFlux.svg" alt="">
+	 * See {@link FluxApiGroupLog#usingLogger(Logger, SignalType...)}.
 	 *
 	 * @param logger the {@link Logger} to use, instead of resolving one through a category.
 	 *
 	 * @return a new {@link Flux} that logs signals
+	 * @deprecated Use {@link FluxApiGroupLog#usingLogger(Logger, SignalType...)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> log(Logger logger) {
 		return log(logger, Level.INFO, false);
 	}
 
 	/**
-	 * Observe Reactive Streams signals matching the passed filter {@code options} and
-	 * trace them using a specific user-provided {@link Logger}, at the given {@link Level}.
-	 * <p>
-	 * Options allow fine grained filtering of the traced signal, for instance to only
-	 * capture onNext and onError:
-	 * <pre>
-	 *     flux.log(myCustomLogger, Level.INFO, SignalType.ON_NEXT, SignalType.ON_ERROR)
-	 * </pre>
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/logForFlux.svg" alt="">
+	 * See {@link FluxApiGroupLog#usingLogger(Logger, boolean, SignalType...)}.
 	 *
 	 * @param logger the {@link Logger} to use, instead of resolving one through a category.
 	 * @param level the {@link Level} to enforce for this tracing Flux (only FINEST, FINE,
@@ -5509,20 +5423,15 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * @param options a vararg {@link SignalType} option to filter log messages
 	 *
 	 * @return a new {@link Flux} that logs signals
+	 * @deprecated Use {@link FluxApiGroupLog#usingLogger(Logger, boolean, SignalType...)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final Flux<T> log(Logger logger,
 			Level level,
 			boolean showOperatorLine,
 			SignalType... options) {
-		SignalLogger<T> log = new SignalLogger<>(this, "IGNORED", level,
-				showOperatorLine,
-				s -> logger,
-				options);
-
-		if (this instanceof Fuseable) {
-			return onAssembly(new FluxLogFuseable<>(this, log));
-		}
-		return onAssembly(new FluxLog<>(this, log));
+		return logAtLevel(level).usingLogger(logger, showOperatorLine, options);
 	}
 
 	/**
@@ -9369,35 +9278,6 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	@Override
 	public String toString() {
 		return getClass().getSimpleName();
-	}
-
-	@SuppressWarnings("unchecked")
-	static <T> Flux<T> doOnSignal(Flux<T> source,
-			@Nullable Consumer<? super Subscription> onSubscribe,
-			@Nullable Consumer<? super T> onNext,
-			@Nullable Consumer<? super Throwable> onError,
-			@Nullable Runnable onComplete,
-			@Nullable Runnable onAfterTerminate,
-			@Nullable LongConsumer onRequest,
-			@Nullable Runnable onCancel) {
-		if (source instanceof Fuseable) {
-			return onAssembly(new FluxPeekFuseable<>(source,
-					onSubscribe,
-					onNext,
-					onError,
-					onComplete,
-					onAfterTerminate,
-					onRequest,
-					onCancel));
-		}
-		return onAssembly(new FluxPeek<>(source,
-				onSubscribe,
-				onNext,
-				onError,
-				onComplete,
-				onAfterTerminate,
-				onRequest,
-				onCancel));
 	}
 
 	/**
