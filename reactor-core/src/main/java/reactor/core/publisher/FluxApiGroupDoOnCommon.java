@@ -28,7 +28,7 @@ import reactor.util.annotation.Nullable;
 import reactor.util.context.Context;
 
 /**
- * A {@link Flux} API sub-group that exposes most common side effects (most common signals like onNext/onComplete/onError..).
+ * A {@link Flux} API sub-group that exposes most common side effects (signals like onNext/onComplete/onError...).
  * Exposed via {@link Flux#doOn()}.
  * <p>
  * Additionally, exposes two extra sub-groups:
