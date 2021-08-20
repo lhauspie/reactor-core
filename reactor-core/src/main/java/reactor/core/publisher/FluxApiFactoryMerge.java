@@ -33,7 +33,7 @@ public final class FluxApiFactoryMerge {
 
 	public static final FluxApiFactoryMerge INSTANCE = new FluxApiFactoryMerge();
 
-	FluxApiFactoryMerge() {
+	private FluxApiFactoryMerge() {
 	}
 
 	/**

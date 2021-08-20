@@ -30,7 +30,7 @@ public final class FluxApiFactoryConcat {
 
 	static final FluxApiFactoryConcat INSTANCE = new FluxApiFactoryConcat();
 
-	FluxApiFactoryConcat() {
+	private FluxApiFactoryConcat() {
 	}
 
 	/**
@@ -162,7 +162,7 @@ public final class FluxApiFactoryConcat {
 	 * @return a new {@link Flux} concatenating all inner sources sequences until complete or error
 	 */
 	public <T> Flux<T> fromPublisherDelayError(Publisher<? extends Publisher<? extends T>> sources, int prefetch) {
-		return Flux.from(sources).concatMapDelayError(Flux.identityFunction(), prefetch);
+		return Flux.from(sources).concatMapExtras().delayError(Flux.identityFunction(), prefetch);
 	}
 
 	/**
@@ -192,7 +192,7 @@ public final class FluxApiFactoryConcat {
 	 */
 	public <T> Flux<T> fromPublisherDelayError(Publisher<? extends Publisher<? extends T>> sources,
 											   boolean delayUntilEnd, int prefetch) {
-		return Flux.from(sources).concatMapDelayError(Flux.identityFunction(), delayUntilEnd, prefetch);
+		return Flux.from(sources).concatMapExtras().delayError(Flux.identityFunction(), delayUntilEnd, prefetch);
 	}
 
 	/**
