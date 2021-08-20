@@ -2234,14 +2234,15 @@ public abstract class Flux<T> implements CorePublisher<T> {
 			final Function<? super TUPLE, ? extends V> combinator) {
 
 		return onAssembly(new FluxBuffer<>(from(sources), Integer.MAX_VALUE, listSupplier())
-		                    .flatMap(new Function<List<? extends Publisher<?>>, Publisher<V>>() {
-			                    @Override
-			                    public Publisher<V> apply(List<? extends Publisher<?>> publishers) {
-				                    return zip(Tuples.fnAny((Function<Tuple2, V>)
-						                    combinator), publishers.toArray(new Publisher[publishers
-						                    .size()]));
-			                    }
-		                    }));
+			.flatMaps().interleaved(
+				new Function<List<? extends Publisher<?>>, Publisher<V>>() {
+					@Override
+					public Publisher<V> apply(List<? extends Publisher<?>> publishers) {
+						return zip(Tuples.fnAny((Function<Tuple2, V>)
+							combinator), publishers.toArray(new Publisher[publishers
+							.size()]));
+					}
+				}));
 	}
 
 	//	 ==============================================================================================================
@@ -3333,184 +3334,69 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	}
 
 	/**
-	 * Transform the elements emitted by this {@link Flux} asynchronously into Publishers,
-	 * then flatten these inner publishers into a single {@link Flux}, sequentially and
-	 * preserving order using concatenation.
-	 * <p>
-	 * There are three dimensions to this operator that can be compared with
-	 * {@link #flatMap(Function) flatMap} and {@link #flatMapSequential(Function) flatMapSequential}:
-	 * <ul>
-	 *     <li><b>Generation of inners and subscription</b>: this operator waits for one
-	 *     inner to complete before generating the next one and subscribing to it.</li>
-	 *     <li><b>Ordering of the flattened values</b>: this operator naturally preserves
-	 *     the same order as the source elements, concatenating the inners from each source
-	 *     element sequentially.</li>
-	 *     <li><b>Interleaving</b>: this operator does not let values from different inners
-	 *     interleave (concatenation).</li>
-	 * </ul>
-	 *
-	 * <p>
-	 * Errors will immediately short circuit current concat backlog.
-	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatMap.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure upon cancellation.
+	 * See {@link FluxApiGroupConcatMap#map(Function)}.
 	 *
 	 * @param mapper the function to transform this sequence of T into concatenated sequences of V
 	 * @param <V> the produced concatenated type
 	 *
 	 * @return a concatenated {@link Flux}
+	 * @deprecated Use {@link #concatMaps()} {@link FluxApiGroupConcatMap#map(Function)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
-	public final <V> Flux<V> concatMap(Function<? super T, ? extends Publisher<? extends V>>
-			mapper) {
+	@Deprecated
+	public final <V> Flux<V> concatMap(Function<? super T, ? extends Publisher<? extends V>> mapper) {
 		return concatMap(mapper, Queues.XS_BUFFER_SIZE);
 	}
 
 	/**
-	 * Transform the elements emitted by this {@link Flux} asynchronously into Publishers,
-	 * then flatten these inner publishers into a single {@link Flux}, sequentially and
-	 * preserving order using concatenation.
-	 * <p>
-	 * There are three dimensions to this operator that can be compared with
-	 * {@link #flatMap(Function) flatMap} and {@link #flatMapSequential(Function) flatMapSequential}:
-	 * <ul>
-	 *     <li><b>Generation of inners and subscription</b>: this operator waits for one
-	 *     inner to complete before generating the next one and subscribing to it.</li>
-	 *     <li><b>Ordering of the flattened values</b>: this operator naturally preserves
-	 *     the same order as the source elements, concatenating the inners from each source
-	 *     element sequentially.</li>
-	 *     <li><b>Interleaving</b>: this operator does not let values from different inners
-	 *     interleave (concatenation).</li>
-	 * </ul>
-	 *
-	 * <p>
-	 * Errors will immediately short circuit current concat backlog. The prefetch argument
-	 * allows to give an arbitrary prefetch size to the upstream source.
-	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatMap.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure upon cancellation.
+	 * See {@link FluxApiGroupConcatMap#map(Function, int)}.
 	 *
 	 * @param mapper the function to transform this sequence of T into concatenated sequences of V
 	 * @param prefetch the number of values to prefetch from upstream source (set it to 0 if you don't want it to prefetch)
 	 * @param <V> the produced concatenated type
 	 *
 	 * @return a concatenated {@link Flux}
+	 * @deprecated Use {@link #concatMaps()} {@link FluxApiGroupConcatMap#map(Function, int)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
-	public final <V> Flux<V> concatMap(Function<? super T, ? extends Publisher<? extends V>>
-			mapper, int prefetch) {
-		if (prefetch == 0) {
-			return onAssembly(new FluxConcatMapNoPrefetch<>(this, mapper, FluxConcatMap.ErrorMode.IMMEDIATE));
-		}
-		return onAssembly(new FluxConcatMap<>(this, mapper, Queues.get(prefetch), prefetch,
-				FluxConcatMap.ErrorMode.IMMEDIATE));
+	@Deprecated
+	public final <V> Flux<V> concatMap(Function<? super T, ? extends Publisher<? extends V>> mapper, int prefetch) {
+		return concatMaps().map(mapper, prefetch);
 	}
 
 	/**
-	 * Transform the elements emitted by this {@link Flux} asynchronously into Publishers,
-	 * then flatten these inner publishers into a single {@link Flux}, sequentially and
-	 * preserving order using concatenation.
-	 * <p>
-	 * There are three dimensions to this operator that can be compared with
-	 * {@link #flatMap(Function) flatMap} and {@link #flatMapSequential(Function) flatMapSequential}:
-	 * <ul>
-	 *     <li><b>Generation of inners and subscription</b>: this operator waits for one
-	 *     inner to complete before generating the next one and subscribing to it.</li>
-	 *     <li><b>Ordering of the flattened values</b>: this operator naturally preserves
-	 *     the same order as the source elements, concatenating the inners from each source
-	 *     element sequentially.</li>
-	 *     <li><b>Interleaving</b>: this operator does not let values from different inners
-	 *     interleave (concatenation).</li>
-	 * </ul>
-	 *
-	 * <p>
-	 * Errors in the individual publishers will be delayed at the end of the whole concat
-	 * sequence (possibly getting combined into a {@link Exceptions#isMultiple(Throwable) composite}
-	 * if several sources error.
-	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatMap.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure upon cancellation.
+	 * See {@link FluxApiGroupConcatMap#mapDelayError(Function)}.
 	 *
 	 * @param mapper the function to transform this sequence of T into concatenated sequences of V
 	 * @param <V> the produced concatenated type
 	 *
 	 * @return a concatenated {@link Flux}
-	 *
+	 * @deprecated Use {@link #concatMaps()} {@link FluxApiGroupConcatMap#mapDelayError(Function)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <V> Flux<V> concatMapDelayError(Function<? super T, ? extends Publisher<? extends V>> mapper) {
-		return concatMapDelayError(mapper, Queues.XS_BUFFER_SIZE);
+		return concatMaps().mapDelayError(mapper);
 	}
 
 	/**
-	 * Transform the elements emitted by this {@link Flux} asynchronously into Publishers,
-	 * then flatten these inner publishers into a single {@link Flux}, sequentially and
-	 * preserving order using concatenation.
-	 * <p>
-	 * There are three dimensions to this operator that can be compared with
-	 * {@link #flatMap(Function) flatMap} and {@link #flatMapSequential(Function) flatMapSequential}:
-	 * <ul>
-	 *     <li><b>Generation of inners and subscription</b>: this operator waits for one
-	 *     inner to complete before generating the next one and subscribing to it.</li>
-	 *     <li><b>Ordering of the flattened values</b>: this operator naturally preserves
-	 *     the same order as the source elements, concatenating the inners from each source
-	 *     element sequentially.</li>
-	 *     <li><b>Interleaving</b>: this operator does not let values from different inners
-	 *     interleave (concatenation).</li>
-	 * </ul>
-	 *
-	 * <p>
-	 * Errors in the individual publishers will be delayed at the end of the whole concat
-	 * sequence (possibly getting combined into a {@link Exceptions#isMultiple(Throwable) composite}
-	 * if several sources error.
-	 * The prefetch argument allows to give an arbitrary prefetch size to the upstream source.
-	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatMap.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure upon cancellation.
+	 * See {@link FluxApiGroupConcatMap#mapDelayError(Function, int)}.
 	 *
 	 * @param mapper the function to transform this sequence of T into concatenated sequences of V
 	 * @param prefetch the number of values to prefetch from upstream source
 	 * @param <V> the produced concatenated type
 	 *
 	 * @return a concatenated {@link Flux}
-	 *
+	 * @deprecated Use {@link #concatMaps()} {@link FluxApiGroupConcatMap#mapDelayError(Function, int)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
-	public final <V> Flux<V> concatMapDelayError(Function<? super T, ? extends Publisher<?
-			extends V>> mapper, int prefetch) {
-		return concatMapDelayError(mapper, true, prefetch);
+	@Deprecated
+	public final <V> Flux<V> concatMapDelayError(Function<? super T, ? extends Publisher<? extends V>> mapper, int prefetch) {
+		return concatMaps().mapDelayError(mapper, prefetch);
 	}
 
 	/**
-	 * Transform the elements emitted by this {@link Flux} asynchronously into Publishers,
-	 * then flatten these inner publishers into a single {@link Flux}, sequentially and
-	 * preserving order using concatenation.
-	 * <p>
-	 * There are three dimensions to this operator that can be compared with
-	 * {@link #flatMap(Function) flatMap} and {@link #flatMapSequential(Function) flatMapSequential}:
-	 * <ul>
-	 *     <li><b>Generation of inners and subscription</b>: this operator waits for one
-	 *     inner to complete before generating the next one and subscribing to it.</li>
-	 *     <li><b>Ordering of the flattened values</b>: this operator naturally preserves
-	 *     the same order as the source elements, concatenating the inners from each source
-	 *     element sequentially.</li>
-	 *     <li><b>Interleaving</b>: this operator does not let values from different inners
-	 *     interleave (concatenation).</li>
-	 * </ul>
-	 *
-	 * <p>
-	 * Errors in the individual publishers will be delayed after the current concat
-	 * backlog if delayUntilEnd is false or after all sources if delayUntilEnd is true.
-	 * The prefetch argument allows to give an arbitrary prefetch size to the upstream source.
-	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatMap.svg" alt="">
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure upon cancellation.
+	 * See {@link FluxApiGroupConcatMap#mapDelayError(Function, boolean, int)}.
 	 *
 	 * @param mapper the function to transform this sequence of T into concatenated sequences of V
 	 * @param delayUntilEnd delay error until all sources have been consumed instead of
@@ -3519,97 +3405,45 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * @param <V> the produced concatenated type
 	 *
 	 * @return a concatenated {@link Flux}
-	 *
+	 * @deprecated Use {@link #concatMaps()} {@link FluxApiGroupConcatMap#mapDelayError(Function, boolean, int)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <V> Flux<V> concatMapDelayError(Function<? super T, ? extends Publisher<?
 			extends V>> mapper, boolean delayUntilEnd, int prefetch) {
-		FluxConcatMap.ErrorMode errorMode = delayUntilEnd ? FluxConcatMap.ErrorMode.END : FluxConcatMap.ErrorMode.BOUNDARY;
-		if (prefetch == 0) {
-			return onAssembly(new FluxConcatMapNoPrefetch<>(this, mapper, errorMode));
-		}
-		return onAssembly(new FluxConcatMap<>(this, mapper, Queues.get(prefetch), prefetch, errorMode));
+		return concatMaps().mapDelayError(mapper, delayUntilEnd, prefetch);
 	}
 
 	/**
-	 * Transform the items emitted by this {@link Flux} into {@link Iterable}, then flatten the elements from those by
-	 * concatenating them into a single {@link Flux}. For each iterable, {@link Iterable#iterator()} will be called
-	 * at least once and at most twice.
-	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatMapIterable.svg" alt="">
-	 * <p>
-	 * This operator inspects each {@link Iterable}'s {@link Spliterator} to assess if the iteration
-	 * can be guaranteed to be finite (see {@link Operators#onDiscardMultiple(Iterator, boolean, Context)}).
-	 * Since the default Spliterator wraps the Iterator we can have two {@link Iterable#iterator()}
-	 * calls per iterable. This second invocation is skipped on a {@link Collection} however, a type which is
-	 * assumed to be always finite.
-	 * <p>
-	 * Note that unlike {@link #flatMap(Function)} and {@link #concatMap(Function)}, with Iterable there is
-	 * no notion of eager vs lazy inner subscription. The content of the Iterables are all played sequentially.
-	 * Thus {@code flatMapIterable} and {@code concatMapIterable} are equivalent offered as a discoverability
-	 * improvement for users that explore the API with the concat vs flatMap expectation.
-	 *
-	 * <p><strong>Discard Support:</strong> Upon cancellation, this operator discards {@code T} elements it prefetched and, in
-	 * some cases, attempts to discard remainder of the currently processed {@link Iterable} (if it can
-	 * safely ensure the iterator is finite). Note that this means each {@link Iterable}'s {@link Iterable#iterator()}
-	 * method could be invoked twice.
-	 *
-	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
-	 * (including when fusion is enabled). Exceptions thrown by the consumer are passed to
-	 * the {@link #onErrorContinue(BiConsumer)} error consumer (the value consumer
-	 * is not invoked, as the source element will be part of the sequence). The onNext
-	 * signal is then propagated as normal.
+	 * See {@link FluxApiGroupConcatMap#iterables(Function)}.
 	 *
 	 * @param mapper the {@link Function} to transform input sequence into N {@link Iterable}
 	 * @param <R> the merged output sequence type
 	 *
 	 * @return a concatenation of the values from the Iterables obtained from each element in this {@link Flux}
+	 * @deprecated Use {@link #concatMaps()} {@link FluxApiGroupConcatMap#iterables(Function)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <R> Flux<R> concatMapIterable(Function<? super T, ? extends Iterable<? extends R>> mapper) {
-		return concatMapIterable(mapper, Queues.XS_BUFFER_SIZE);
+		return concatMaps().iterables(mapper);
 	}
 
 	/**
-	 * Transform the items emitted by this {@link Flux} into {@link Iterable}, then flatten the emissions from those by
-	 * concatenating them into a single {@link Flux}.
-	 * The prefetch argument allows to give an arbitrary prefetch size to the upstream source.
-	 * For each iterable, {@link Iterable#iterator()} will be called at least once and at most twice.
-	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/concatMapIterable.svg" alt="">
-	 * <p>
-	 * This operator inspects each {@link Iterable}'s {@link Spliterator} to assess if the iteration
-	 * can be guaranteed to be finite (see {@link Operators#onDiscardMultiple(Iterator, boolean, Context)}).
-	 * Since the default Spliterator wraps the Iterator we can have two {@link Iterable#iterator()}
-	 * calls per iterable. This second invocation is skipped on a {@link Collection} however, a type which is
-	 * assumed to be always finite.
-	 * <p>
-	 * Note that unlike {@link #flatMap(Function)} and {@link #concatMap(Function)}, with Iterable there is
-	 * no notion of eager vs lazy inner subscription. The content of the Iterables are all played sequentially.
-	 * Thus {@code flatMapIterable} and {@code concatMapIterable} are equivalent offered as a discoverability
-	 * improvement for users that explore the API with the concat vs flatMap expectation.
-	 *
-	 * <p><strong>Discard Support:</strong> Upon cancellation, this operator discards {@code T} elements it prefetched and, in
-	 * some cases, attempts to discard remainder of the currently processed {@link Iterable} (if it can
-	 * safely ensure the iterator is finite). Note that this means each {@link Iterable}'s {@link Iterable#iterator()}
-	 * method could be invoked twice.
-	 *
-	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
-	 * (including when fusion is enabled). Exceptions thrown by the consumer are passed to
-	 * the {@link #onErrorContinue(BiConsumer)} error consumer (the value consumer
-	 * is not invoked, as the source element will be part of the sequence). The onNext
-	 * signal is then propagated as normal.
+	 * See {@link FluxApiGroupConcatMap#iterables(Function, int)}.
 	 *
 	 * @param mapper the {@link Function} to transform input sequence into N {@link Iterable}
 	 * @param prefetch the number of values to request from the source upon subscription, to be transformed to {@link Iterable}
 	 * @param <R> the merged output sequence type
 	 *
 	 * @return a concatenation of the values from the Iterables obtained from each element in this {@link Flux}
+	 * @deprecated Use {@link #concatMaps()} {@link FluxApiGroupConcatMap#iterables(Function, int)}.
+	 * To be aggressively removed in 4.1.0.
 	 */
+	@Deprecated
 	public final <R> Flux<R> concatMapIterable(Function<? super T, ? extends Iterable<? extends R>> mapper,
 			int prefetch) {
-		return onAssembly(new FluxFlattenIterable<>(this, mapper, prefetch,
-				Queues.get(prefetch)));
+		return concatMaps().iterables(mapper, prefetch);
 	}
 
 	/**
@@ -4292,7 +4126,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * {@link Flux} ({@code this}).
 	 * <p>
 	 * This side-effect method provides stronger <i>first</i> guarantees compared to
-	 * {@link #doOnSubscribe(Consumer)}, which is triggered once the {@link Subscription}
+	 * {@link FluxApiGroupDoOnAdvanced#doOnSubscribe(Consumer)}, which is triggered once the {@link Subscription}
 	 * has been set up and passed to the {@link Subscriber}.
 	 *
 	 * @param onFirst the callback to execute before the {@link Flux} is subscribed to
@@ -4566,7 +4400,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * @param p the {@link Predicate} to test values against
 	 *
-	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
+	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #unsafe()} resuming on errors
 	 * (including when fusion is enabled). Exceptions thrown by the predicate are
 	 * considered as if the predicate returned false: they cause the source value to be
 	 * dropped and a new element ({@code request(1)}) being requested from upstream.
@@ -4995,7 +4829,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * @param handler the handling {@link BiConsumer}
 	 * @param <R> the transformed type
 	 *
-	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors} (including when
+	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #unsafe()} resuming on errors (including when
 	 * fusion is enabled) when the {@link BiConsumer} throws an exception or if an error is signaled explicitly via
 	 * {@link SynchronousSink#error(Throwable)}.
 	 *
@@ -5444,7 +5278,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * @param mapper the synchronous transforming {@link Function}
 	 * @param <V> the transformed type
 	 *
-	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
+	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #unsafe()} resuming on errors
 	 * (including when fusion is enabled). Exceptions thrown by the mapper then cause the
 	 * source value to be dropped and a new element ({@code request(1)}) being requested
 	 * from upstream.
@@ -5470,7 +5304,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * @param mapper the synchronous transforming {@link Function}
 	 * @param <V> the transformed type
 	 *
-	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
+	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #unsafe()} resuming on errors
 	 * (including when fusion is enabled). Exceptions thrown by the mapper then cause the
 	 * source value to be dropped and a new element ({@code request(1)}) being requested
 	 * from upstream.
@@ -5535,7 +5369,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 			FluxMergeComparing<T> fluxMerge = (FluxMergeComparing<T>) this;
 			return fluxMerge.mergeAdditionalSource(other, otherComparator);
 		}
-		return mergeComparing(otherComparator, this, other);
+		return fromMerging().mergeComparing(otherComparator, this, other);
 	}
 
 	/**
@@ -5559,7 +5393,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 			FluxMerge<T> fluxMerge = (FluxMerge<T>) this;
 			return fluxMerge.mergeAdditionalSource(other, Queues::get);
 		}
-		return merge(this, other);
+		return fromMerging().merge(this, other);
 	}
 
 	/**
@@ -7319,7 +7153,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 			FluxConcatArray<T> fluxConcatArray = (FluxConcatArray<T>) this;
 			return fluxConcatArray.concatAdditionalSourceFirst(publisher);
 		}
-		return concat(publisher, this);
+		return fromConcatenating().allOf(publisher, this);
 	}
 
 	/**
@@ -7341,7 +7175,8 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * Subscribe a {@link Consumer} to this {@link Flux} that will consume all the
 	 * elements in the  sequence. It will request an unbounded demand ({@code Long.MAX_VALUE}).
 	 * <p>
-	 * For a passive version that observe and forward incoming data see {@link #doOnNext(java.util.function.Consumer)}.
+	 * For a passive version that observe and forward incoming data see {@link #doOn()}
+	 * {@link FluxApiGroupDoOnCommon#next(Consumer)}.
 	 * <p>
 	 * For a version that gives you more control over backpressure and the request, see
 	 * {@link #subscribe(Subscriber)} with a {@link BaseSubscriber}.
@@ -7367,8 +7202,9 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * elements in the sequence, as well as a {@link Consumer} that will handle errors.
 	 * The subscription will request an unbounded demand ({@code Long.MAX_VALUE}).
 	 * <p>
-	 * For a passive version that observe and forward incoming data see
-	 * {@link #doOnNext(java.util.function.Consumer)} and {@link #doOnError(java.util.function.Consumer)}.
+	 * For a passive version that observe and forward incoming data see {@link #doOn()}'s
+	 * {@link FluxApiGroupDoOnCommon#next(java.util.function.Consumer)}
+	 * and {@link FluxApiGroupDoOnCommon#error(java.util.function.Consumer)}.
 	 * <p>For a version that gives you more control over backpressure and the request, see
 	 * {@link #subscribe(Subscriber)} with a {@link BaseSubscriber}.
 	 * <p>
@@ -7394,8 +7230,10 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * elements in the sequence, handle errors and react to completion. The subscription
 	 * will request unbounded demand ({@code Long.MAX_VALUE}).
 	 * <p>
-	 * For a passive version that observe and forward incoming data see {@link #doOnNext(java.util.function.Consumer)},
-	 * {@link #doOnError(java.util.function.Consumer)} and {@link #doOnComplete(Runnable)}.
+	 * For a passive version that observe and forward incoming data see {@link #doOn()}'s
+	 * {@link FluxApiGroupDoOnCommon#next(java.util.function.Consumer)},
+	 * {@link FluxApiGroupDoOnCommon#error(java.util.function.Consumer)} and
+	 * {@link FluxApiGroupDoOnCommon#complete(Runnable)}.
 	 * <p>For a version that gives you more control over backpressure and the request, see
 	 * {@link #subscribe(Subscriber)} with a {@link BaseSubscriber}.
 	 * <p>
@@ -7466,9 +7304,11 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * elements in the sequence, handle errors and react to completion. Additionally, a {@link Context}
 	 * is tied to the subscription. At subscription, an unbounded request is implicitly made.
 	 * <p>
-	 * For a passive version that observe and forward incoming data see {@link #doOnNext(java.util.function.Consumer)},
-	 * {@link #doOnError(java.util.function.Consumer)}, {@link #doOnComplete(Runnable)}
-	 * and {@link #doOnSubscribe(Consumer)}.
+	 * For a passive version that observe and forward incoming data see {@link #doOn()}'s
+	 * {@link FluxApiGroupDoOnCommon#next(java.util.function.Consumer)},
+	 * {@link FluxApiGroupDoOnCommon#error(java.util.function.Consumer)} and
+	 * {@link FluxApiGroupDoOnCommon#complete(Runnable)} as well as
+	 * {@link FluxApiGroupDoOnCommon#advanced() doOn().advanced()}'s {@link FluxApiGroupDoOnAdvanced#onSubscribe(Consumer)}.
 	 * <p>For a version that gives you more control over backpressure and the request, see
 	 * {@link #subscribe(Subscriber)} with a {@link BaseSubscriber}.
 	 * <p>
@@ -8133,7 +7973,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 		}
 
 		@SuppressWarnings("unchecked")
-		Flux<V> concat = (Flux<V>)concat(ignoreElements(), other);
+		Flux<V> concat = (Flux<V>) Flux.fromConcatenating().allOf(ignoreElements(), other);
 		return concat;
 	}
 

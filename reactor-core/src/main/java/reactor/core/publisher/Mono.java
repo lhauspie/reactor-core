@@ -2199,7 +2199,7 @@ public abstract class Mono<T> implements CorePublisher<T> {
 	 * @return a concatenated {@link Flux}
 	 */
 	public final Flux<T> concatWith(Publisher<? extends T> other) {
-		return Flux.concat(this, other);
+		return Flux.fromConcatenating().allOf(this, other);
 	}
 
 	/**
@@ -2782,7 +2782,7 @@ public abstract class Mono<T> implements CorePublisher<T> {
 
 	/**
 	 * Add behavior triggered when the {@link Mono} terminates, either by completing with a value,
-	 * completing empty or failing with an error. Unlike in {@link Flux#doOnTerminate(Runnable)},
+	 * completing empty or failing with an error. Unlike in {@link FluxApiGroupDoOnCommon#terminate(Runnable) Flux#doOn().terminate(Runnable)} ,
 	 * the simple fact that a {@link Mono} emits {@link Subscriber#onNext(Object) onNext} implies
 	 * completion, so the handler is invoked BEFORE the element is propagated (same as with {@link #doOnSuccess(Consumer)}).
 	 *
@@ -3078,12 +3078,12 @@ public abstract class Mono<T> implements CorePublisher<T> {
 	 *
 	 * @return a new {@link Flux} as the sequence is not guaranteed to be single at most
 	 *
-	 * @see Flux#flatMap(Function, Function, Supplier)
+	 * @see Flux#flatMaps()
 	 */
 	public final <R> Flux<R> flatMapMany(Function<? super T, ? extends Publisher<? extends R>> mapperOnNext,
 			Function<? super Throwable, ? extends Publisher<? extends R>> mapperOnError,
 			Supplier<? extends Publisher<? extends R>> mapperOnComplete) {
-		return flux().flatMap(mapperOnNext, mapperOnError, mapperOnComplete);
+		return flux().flatMaps().signals(mapperOnNext, mapperOnError, mapperOnComplete);
 	}
 
 	/**
@@ -3407,7 +3407,7 @@ public abstract class Mono<T> implements CorePublisher<T> {
 	 * @return a new {@link Flux} as the sequence is not guaranteed to be at most 1
 	 */
 	public final Flux<T> mergeWith(Publisher<? extends T> other) {
-		return Flux.merge(this, other);
+		return Flux.fromMerging().merge(this, other);
 	}
 
 	/**
@@ -4636,7 +4636,7 @@ public abstract class Mono<T> implements CorePublisher<T> {
 	 */
 	public final <V> Flux<V> thenMany(Publisher<V> other) {
 		@SuppressWarnings("unchecked")
-		Flux<V> concat = (Flux<V>)Flux.concat(ignoreElement(), other);
+		Flux<V> concat = (Flux<V>) Flux.fromConcatenating().allOf(ignoreElement(), other);
 		return Flux.onAssembly(concat);
 	}
 
