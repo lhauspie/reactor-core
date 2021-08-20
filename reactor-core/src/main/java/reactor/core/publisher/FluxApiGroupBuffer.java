@@ -348,6 +348,110 @@ public final class FluxApiGroupBuffer<T> {
 
 	/**
 	 * Collect incoming values into multiple {@link List} buffers that will be emitted by
+	 * the resulting {@link Flux} each time the given predicate returns true. Note that
+	 * the element that triggers the predicate to return true (and thus closes a buffer)
+	 * is included as last element in the emitted buffer.
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/bufferUntil.svg" alt="">
+	 * <p>
+	 * On completion, if the latest buffer is non-empty and has not been closed it is
+	 * emitted. However, such a "partial" buffer isn't emitted in case of onError
+	 * termination.
+	 *
+	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
+	 *
+	 * @param predicate a predicate that triggers the next buffer when it becomes true.
+	 *
+	 * @return a buffered {@link Flux} of {@link List}
+	 */
+	public Flux<List<T>> includeUntil(Predicate<? super T> predicate) {
+		return Flux.onAssembly(new FluxBufferPredicate<>(this.source, predicate,
+			Flux.listSupplier(), FluxBufferPredicate.Mode.UNTIL));
+	}
+
+	/**
+	 * Collect incoming values into multiple {@link List} buffers that will be emitted by
+	 * the resulting {@link Flux} each time the given predicate returns true. Note that
+	 * the buffer into which the element that triggers the predicate to return true
+	 * (and thus closes a buffer) is included depends on the {@code cutBefore} parameter:
+	 * set it to true to include the boundary element in the newly opened buffer, false to
+	 * include it in the closed buffer (as in {@link #includeUntil(Predicate)}).
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/bufferUntilWithCutBefore.svg" alt="">
+	 * <p>
+	 * On completion, if the latest buffer is non-empty and has not been closed it is
+	 * emitted. However, such a "partial" buffer isn't emitted in case of onError
+	 * termination.
+	 *
+	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
+	 *
+	 * @param predicate a predicate that triggers the next buffer when it becomes true.
+	 * @param cutBefore set to true to include the triggering element in the new buffer rather than the old.
+	 *
+	 * @return a buffered {@link Flux} of {@link List}
+	 */
+	public Flux<List<T>> includeUntil(Predicate<? super T> predicate, boolean cutBefore) {
+		return Flux.onAssembly(new FluxBufferPredicate<>(this.source, predicate, Flux.listSupplier(),
+			cutBefore ? FluxBufferPredicate.Mode.UNTIL_CUT_BEFORE
+				: FluxBufferPredicate.Mode.UNTIL));
+	}
+
+	/**
+	 * Collect subsequent repetitions of an element (that is, if they arrive right after
+	 * one another) into multiple {@link List} buffers that will be emitted by the
+	 * resulting {@link Flux}.
+	 *
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/bufferUntilChanged.svg" alt="">
+	 * <p>
+	 *
+	 * @return a buffered {@link Flux} of {@link List}
+	 */
+	public Flux<List<T>> includeUntilChanged() {
+		return includeUntilChanged(Flux.identityFunction());
+	}
+
+	/**
+	 * Collect subsequent repetitions of an element (that is, if they arrive right after
+	 * one another), as compared by a key extracted through the user provided {@link
+	 * Function}, into multiple {@link List} buffers that will be emitted by the
+	 * resulting {@link Flux}.
+	 *
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/bufferUntilChangedWithKey.svg" alt="">
+	 * <p>
+	 *
+	 * @param keySelector function to compute comparison key for each element
+	 *
+	 * @return a buffered {@link Flux} of {@link List}
+	 */
+	public <V> Flux<List<T>> includeUntilChanged(Function<? super T, ? extends V> keySelector) {
+		return includeUntilChanged(keySelector, Flux.equalPredicate());
+	}
+
+	/**
+	 * Collect subsequent repetitions of an element (that is, if they arrive right after
+	 * one another), as compared by a key extracted through the user provided {@link
+	 * Function} and compared using a supplied {@link BiPredicate}, into multiple
+	 * {@link List} buffers that will be emitted by the resulting {@link Flux}.
+	 *
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/bufferUntilChangedWithKey.svg" alt="">
+	 * <p>
+	 *
+	 * @param keySelector function to compute comparison key for each element
+	 * @param keyComparator predicate used to compare keys
+	 *
+	 * @return a buffered {@link Flux} of {@link List}
+	 */
+	public <V> Flux<List<T>> includeUntilChanged(Function<? super T, ? extends V> keySelector,
+												 BiPredicate<? super V, ? super V> keyComparator) {
+		return Flux.defer(() -> includeUntil(new FluxBufferPredicate.ChangedPredicate<T, V>(keySelector,
+			keyComparator), true));
+	}
+
+	/**
+	 * Collect incoming values into multiple {@link List} buffers that will be emitted by
 	 * the resulting {@link Flux}. Each buffer continues aggregating values while the
 	 * given predicate returns true, and a new buffer is created as soon as the
 	 * predicate returns false... Note that the element that triggers the predicate
@@ -366,7 +470,7 @@ public final class FluxApiGroupBuffer<T> {
 	 *
 	 * @return a buffered {@link Flux} of {@link List}
 	 */
-	public Flux<List<T>> splitIf(Predicate<? super T> predicate) {
+	public Flux<List<T>> includeWhile(Predicate<? super T> predicate) {
 		return Flux.onAssembly(new FluxBufferPredicate<>(this.source, predicate,
 			Flux.listSupplier(), FluxBufferPredicate.Mode.WHILE));
 	}
@@ -405,110 +509,6 @@ public final class FluxApiGroupBuffer<T> {
 	 */
 	public <C extends Collection<? super T>> Flux<C> splitWhen(Publisher<?> other, Supplier<C> bufferSupplier) {
 		return Flux.onAssembly(new FluxBufferBoundary<>(this.source, other, bufferSupplier));
-	}
-
-	/**
-	 * Collect incoming values into multiple {@link List} buffers that will be emitted by
-	 * the resulting {@link Flux} each time the given predicate returns true. Note that
-	 * the element that triggers the predicate to return true (and thus closes a buffer)
-	 * is included as last element in the emitted buffer.
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferUntil.svg" alt="">
-	 * <p>
-	 * On completion, if the latest buffer is non-empty and has not been closed it is
-	 * emitted. However, such a "partial" buffer isn't emitted in case of onError
-	 * termination.
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
-	 *
-	 * @param predicate a predicate that triggers the next buffer when it becomes true.
-	 *
-	 * @return a buffered {@link Flux} of {@link List}
-	 */
-	public Flux<List<T>> until(Predicate<? super T> predicate) {
-		return Flux.onAssembly(new FluxBufferPredicate<>(this.source, predicate,
-			Flux.listSupplier(), FluxBufferPredicate.Mode.UNTIL));
-	}
-
-	/**
-	 * Collect incoming values into multiple {@link List} buffers that will be emitted by
-	 * the resulting {@link Flux} each time the given predicate returns true. Note that
-	 * the buffer into which the element that triggers the predicate to return true
-	 * (and thus closes a buffer) is included depends on the {@code cutBefore} parameter:
-	 * set it to true to include the boundary element in the newly opened buffer, false to
-	 * include it in the closed buffer (as in {@link #until(Predicate)}).
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferUntilWithCutBefore.svg" alt="">
-	 * <p>
-	 * On completion, if the latest buffer is non-empty and has not been closed it is
-	 * emitted. However, such a "partial" buffer isn't emitted in case of onError
-	 * termination.
-	 *
-	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
-	 *
-	 * @param predicate a predicate that triggers the next buffer when it becomes true.
-	 * @param cutBefore set to true to include the triggering element in the new buffer rather than the old.
-	 *
-	 * @return a buffered {@link Flux} of {@link List}
-	 */
-	public Flux<List<T>> until(Predicate<? super T> predicate, boolean cutBefore) {
-		return Flux.onAssembly(new FluxBufferPredicate<>(this.source, predicate, Flux.listSupplier(),
-			cutBefore ? FluxBufferPredicate.Mode.UNTIL_CUT_BEFORE
-				: FluxBufferPredicate.Mode.UNTIL));
-	}
-
-	/**
-	 * Collect subsequent repetitions of an element (that is, if they arrive right after
-	 * one another) into multiple {@link List} buffers that will be emitted by the
-	 * resulting {@link Flux}.
-	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferUntilChanged.svg" alt="">
-	 * <p>
-	 *
-	 * @return a buffered {@link Flux} of {@link List}
-	 */
-	public <V> Flux<List<T>> untilChanged() {
-		return untilChanged(Flux.identityFunction());
-	}
-
-	/**
-	 * Collect subsequent repetitions of an element (that is, if they arrive right after
-	 * one another), as compared by a key extracted through the user provided {@link
-	 * Function}, into multiple {@link List} buffers that will be emitted by the
-	 * resulting {@link Flux}.
-	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferUntilChangedWithKey.svg" alt="">
-	 * <p>
-	 *
-	 * @param keySelector function to compute comparison key for each element
-	 *
-	 * @return a buffered {@link Flux} of {@link List}
-	 */
-	public <V> Flux<List<T>> untilChanged(Function<? super T, ? extends V> keySelector) {
-		return untilChanged(keySelector, Flux.equalPredicate());
-	}
-
-	/**
-	 * Collect subsequent repetitions of an element (that is, if they arrive right after
-	 * one another), as compared by a key extracted through the user provided {@link
-	 * Function} and compared using a supplied {@link BiPredicate}, into multiple
-	 * {@link List} buffers that will be emitted by the resulting {@link Flux}.
-	 *
-	 * <p>
-	 * <img class="marble" src="doc-files/marbles/bufferUntilChangedWithKey.svg" alt="">
-	 * <p>
-	 *
-	 * @param keySelector function to compute comparison key for each element
-	 * @param keyComparator predicate used to compare keys
-	 *
-	 * @return a buffered {@link Flux} of {@link List}
-	 */
-	public <V> Flux<List<T>> untilChanged(Function<? super T, ? extends V> keySelector,
-										  BiPredicate<? super V, ? super V> keyComparator) {
-		return Flux.defer(() -> until(new FluxBufferPredicate.ChangedPredicate<T, V>(keySelector,
-			keyComparator), true));
 	}
 
 	/**
