@@ -1523,13 +1523,123 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * Instead, this operator considers only one value from each source and picks the
 	 * smallest of all these values, then replenishes the slot for that picked source.
 	 * <p>
-	 * <img class="marble" src="doc-files/marbles/mergeOrderedNaturalOrder.svg" alt="">
+	 * <img class="marble" src="doc-files/marbles/mergeComparingNaturalOrder.svg" alt="">
 	 *
 	 * @param sources {@link Publisher} sources of {@link Comparable} to merge
 	 * @param <I> a {@link Comparable} merged type that has a {@link Comparator#naturalOrder() natural order}
 	 * @return a merged {@link Flux} that , subscribing early but keeping the original ordering
 	 */
 	@SafeVarargs
+	public static <I extends Comparable<? super I>> Flux<I> mergeComparing(Publisher<? extends I>... sources) {
+		return mergeComparing(Queues.SMALL_BUFFER_SIZE, Comparator.naturalOrder(), sources);
+	}
+
+	/**
+	 * Merge data from provided {@link Publisher} sequences into an ordered merged sequence,
+	 * by picking the smallest values from each source (as defined by the provided
+	 * {@link Comparator}). This is not a {@link #sort(Comparator)}, as it doesn't consider
+	 * the whole of each sequences.
+	 * <p>
+	 * Instead, this operator considers only one value from each source and picks the
+	 * smallest of all these values, then replenishes the slot for that picked source.
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/mergeComparing.svg" alt="">
+	 *
+	 * @param comparator the {@link Comparator} to use to find the smallest value
+	 * @param sources {@link Publisher} sources to merge
+	 * @param <T> the merged type
+	 * @return a merged {@link Flux} that compares latest values from each source, using the
+	 * smallest value and replenishing the source that produced it
+	 */
+	@SafeVarargs
+	public static <T> Flux<T> mergeComparing(Comparator<? super T> comparator, Publisher<? extends T>... sources) {
+		return mergeComparing(Queues.SMALL_BUFFER_SIZE, comparator, sources);
+	}
+
+	/**
+	 * Merge data from provided {@link Publisher} sequences into an ordered merged sequence,
+	 * by picking the smallest values from each source (as defined by the provided
+	 * {@link Comparator}). This is not a {@link #sort(Comparator)}, as it doesn't consider
+	 * the whole of each sequences.
+	 * <p>
+	 * Instead, this operator considers only one value from each source and picks the
+	 * smallest of all these values, then replenishes the slot for that picked source.
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/mergeComparing.svg" alt="">
+	 *
+	 * @param prefetch the number of elements to prefetch from each source (avoiding too
+	 * many small requests to the source when picking)
+	 * @param comparator the {@link Comparator} to use to find the smallest value
+	 * @param sources {@link Publisher} sources to merge
+	 * @param <T> the merged type
+	 * @return a merged {@link Flux} that compares latest values from each source, using the
+	 * smallest value and replenishing the source that produced it
+	 */
+	@SafeVarargs
+	public static <T> Flux<T> mergeComparing(int prefetch, Comparator<? super T> comparator, Publisher<? extends T>... sources) {
+		if (sources.length == 0) {
+			return empty();
+		}
+		if (sources.length == 1) {
+			return from(sources[0]);
+		}
+		return onAssembly(new FluxMergeComparing<>(prefetch, comparator, false, sources));
+	}
+
+	/**
+	 * Merge data from provided {@link Publisher} sequences into an ordered merged sequence,
+	 * by picking the smallest values from each source (as defined by the provided
+	 * {@link Comparator}). This is not a {@link #sort(Comparator)}, as it doesn't consider
+	 * the whole of each sequences.
+	 * <p>
+	 * Instead, this operator considers only one value from each source and picks the
+	 * smallest of all these values, then replenishes the slot for that picked source.
+	 * <p>
+	 * Note that it is delaying errors until all data is consumed.
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/mergeComparing.svg" alt="">
+	 *
+	 * @param prefetch the number of elements to prefetch from each source (avoiding too
+	 * many small requests to the source when picking)
+	 * @param comparator the {@link Comparator} to use to find the smallest value
+	 * @param sources {@link Publisher} sources to merge
+	 * @param <T> the merged type
+	 * @return a merged {@link Flux} that compares latest values from each source, using the
+	 * smallest value and replenishing the source that produced it
+	 */
+	@SafeVarargs
+	public static <T> Flux<T> mergeComparingDelayError(int prefetch, Comparator<? super T> comparator, Publisher<? extends T>... sources) {
+		if (sources.length == 0) {
+			return empty();
+		}
+		if (sources.length == 1) {
+			return from(sources[0]);
+		}
+		return onAssembly(new FluxMergeComparing<>(prefetch, comparator, true, sources));
+	}
+
+	/**
+	 * Merge data from provided {@link Publisher} sequences into an ordered merged sequence,
+	 * by picking the smallest values from each source (as defined by their natural order).
+	 * This is not a {@link #sort()}, as it doesn't consider the whole of each sequences.
+	 * <p>
+	 * Instead, this operator considers only one value from each source and picks the
+	 * smallest of all these values, then replenishes the slot for that picked source.
+	 * <p>
+	 * Note that it is delaying errors until all data is consumed.
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/mergeComparingNaturalOrder.svg" alt="">
+	 *
+	 * @param sources {@link Publisher} sources of {@link Comparable} to merge
+	 * @param <I> a {@link Comparable} merged type that has a {@link Comparator#naturalOrder() natural order}
+	 * @return a merged {@link Flux} that compares latest values from each source, using the
+	 * smallest value and replenishing the source that produced it
+	 * @deprecated Use {@link #mergeComparingDelayError(int, Comparator, Publisher[])} instead
+	 * (as {@link #mergeComparing(Publisher[])} don't have this operator's delayError behavior).
+	 * To be removed in 3.6.0 at the earliest.
+	 */
+	@SafeVarargs
+	@Deprecated
 	public static <I extends Comparable<? super I>> Flux<I> mergeOrdered(Publisher<? extends I>... sources) {
 		return mergeOrdered(Queues.SMALL_BUFFER_SIZE, Comparator.naturalOrder(), sources);
 	}
@@ -1543,14 +1653,21 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * Instead, this operator considers only one value from each source and picks the
 	 * smallest of all these values, then replenishes the slot for that picked source.
 	 * <p>
-	 * <img class="marble" src="doc-files/marbles/mergeOrdered.svg" alt="">
+	 * Note that it is delaying errors until all data is consumed.
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/mergeComparing.svg" alt="">
 	 *
 	 * @param comparator the {@link Comparator} to use to find the smallest value
 	 * @param sources {@link Publisher} sources to merge
 	 * @param <T> the merged type
-	 * @return a merged {@link Flux} that , subscribing early but keeping the original ordering
+	 * @return a merged {@link Flux} that compares latest values from each source, using the
+	 * smallest value and replenishing the source that produced it
+	 * @deprecated Use {@link #mergeComparingDelayError(int, Comparator, Publisher[])} instead
+	 * (as {@link #mergeComparing(Publisher[])} don't have this operator's delayError behavior).
+	 * To be removed in 3.6.0 at the earliest.
 	 */
 	@SafeVarargs
+	@Deprecated
 	public static <T> Flux<T> mergeOrdered(Comparator<? super T> comparator, Publisher<? extends T>... sources) {
 		return mergeOrdered(Queues.SMALL_BUFFER_SIZE, comparator, sources);
 	}
@@ -1564,16 +1681,23 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * Instead, this operator considers only one value from each source and picks the
 	 * smallest of all these values, then replenishes the slot for that picked source.
 	 * <p>
-	 * <img class="marble" src="doc-files/marbles/mergeOrdered.svg" alt="">
+	 * Note that it is delaying errors until all data is consumed.
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/mergeComparing.svg" alt="">
 	 *
 	 * @param prefetch the number of elements to prefetch from each source (avoiding too
 	 * many small requests to the source when picking)
 	 * @param comparator the {@link Comparator} to use to find the smallest value
 	 * @param sources {@link Publisher} sources to merge
 	 * @param <T> the merged type
-	 * @return a merged {@link Flux} that , subscribing early but keeping the original ordering
+	 * @return a merged {@link Flux} that compares latest values from each source, using the
+	 * smallest value and replenishing the source that produced it
+	 * @deprecated Use {@link #mergeComparingDelayError(int, Comparator, Publisher[])} instead
+	 * (as {@link #mergeComparing(Publisher[])} don't have this operator's delayError behavior).
+	 * To be removed in 3.6.0 at the earliest.
 	 */
 	@SafeVarargs
+	@Deprecated
 	public static <T> Flux<T> mergeOrdered(int prefetch, Comparator<? super T> comparator, Publisher<? extends T>... sources) {
 		if (sources.length == 0) {
 			return empty();
@@ -1581,7 +1705,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 		if (sources.length == 1) {
 			return from(sources[0]);
 		}
-		return onAssembly(new FluxMergeOrdered<>(prefetch, comparator, sources));
+		return onAssembly(new FluxMergeComparing<>(prefetch, comparator, true, sources));
 	}
 
 	/**
@@ -2830,6 +2954,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * @param maxTime the timeout enforcing the release of a partial buffer
 	 * @param bufferSupplier a {@link Supplier} of the concrete {@link Collection} to use for each buffer
 	 * @param <C> the {@link Collection} buffer type
+	 *
 	 * @return a microbatched {@link Flux} of {@link Collection} delimited by given size or a given period timeout
 	 */
 	public final <C extends Collection<? super T>> Flux<C> bufferTimeout(int maxSize, Duration maxTime, Supplier<C> bufferSupplier) {
@@ -2870,6 +2995,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * @param timer a time-capable {@link Scheduler} instance to run on
 	 * @param bufferSupplier a {@link Supplier} of the concrete {@link Collection} to use for each buffer
 	 * @param <C> the {@link Collection} buffer type
+	 *
 	 * @return a microbatched {@link Flux} of {@link Collection} delimited by given size or a given period timeout
 	 */
 	public final  <C extends Collection<? super T>> Flux<C> bufferTimeout(int maxSize, Duration maxTime,
@@ -2892,6 +3018,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * <p><strong>Discard Support:</strong> This operator discards the currently open buffer upon cancellation or error triggered by a data signal.
 	 *
 	 * @param predicate a predicate that triggers the next buffer when it becomes true.
+	 *
 	 * @return a microbatched {@link Flux} of {@link List}
 	 */
 	public final Flux<List<T>> bufferUntil(Predicate<? super T> predicate) {
@@ -2917,6 +3044,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * @param predicate a predicate that triggers the next buffer when it becomes true.
 	 * @param cutBefore set to true to include the triggering element in the new buffer rather than the old.
+	 *
 	 * @return a microbatched {@link Flux} of {@link List}
 	 */
 	public final Flux<List<T>> bufferUntil(Predicate<? super T> predicate, boolean cutBefore) {
@@ -2994,6 +3122,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * as well as the buffer-triggering element.
 	 *
 	 * @param predicate a predicate that triggers the next buffer when it becomes false.
+	 *
 	 * @return a microbatched {@link Flux} of {@link List}
 	 */
 	public final Flux<List<T>> bufferWhile(Predicate<? super T> predicate) {
@@ -3293,19 +3422,20 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	/**
 	 * Collect all elements emitted by this {@link Flux} into a user-defined container,
 	 * by applying a collector {@link BiConsumer} taking the container and each element.
-	 * The collected result will be emitted when this sequence completes.
+	 * The collected result will be emitted when this sequence completes, emitting the
+	 * empty container if the sequence was empty.
 	 *
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/collect.svg" alt="">
-	 *
-	 * @param <E> the container type
-	 * @param containerSupplier the supplier of the container instance for each Subscriber
-	 * @param collector a consumer of both the container instance and the value being currently collected
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards the container upon cancellation or error triggered by a data signal.
 	 * Either the container type is a {@link Collection} (in which case individual elements are discarded)
 	 * or not (in which case the entire container is discarded). In case the collector {@link BiConsumer} fails
 	 * to accumulate an element, the container is discarded as above and the triggering element is also discarded.
+	 *
+	 * @param <E> the container type
+	 * @param containerSupplier the supplier of the container instance for each Subscriber
+	 * @param collector a consumer of both the container instance and the value being currently collected
 	 *
 	 * @return a {@link Mono} of the collected container on complete
 	 *
@@ -3317,14 +3447,11 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	/**
 	 * Collect all elements emitted by this {@link Flux} into a container,
 	 * by applying a Java 8 Stream API {@link Collector}
-	 * The collected result will be emitted when this sequence completes.
+	 * The collected result will be emitted when this sequence completes, emitting
+	 * the empty container if the sequence was empty.
 	 *
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/collectWithCollector.svg" alt="">
-	 *
-	 * @param collector the {@link Collector}
-	 * @param <A> The mutable accumulation type
-	 * @param <R> the container type
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards the intermediate container (see {@link Collector#supplier()} upon
 	 * cancellation, error or exception while applying the {@link Collector#finisher()}. Either the container type
@@ -3332,6 +3459,10 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * container is discarded). In case the accumulator {@link BiConsumer} of the collector fails to accumulate
 	 * an element into the intermediate container, the container is discarded as above and the triggering element
 	 * is also discarded.
+	 *
+	 * @param collector the {@link Collector}
+	 * @param <A> The mutable accumulation type
+	 * @param <R> the container type
 	 *
 	 * @return a {@link Mono} of the collected container on complete
 	 *
@@ -3342,7 +3473,8 @@ public abstract class Flux<T> implements CorePublisher<T> {
 
 	/**
 	 * Collect all elements emitted by this {@link Flux} into a {@link List} that is
-	 * emitted by the resulting {@link Mono} when this sequence completes.
+	 * emitted by the resulting {@link Mono} when this sequence completes, emitting the
+	 * empty {@link List} if the sequence was empty.
 	 *
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/collectList.svg" alt="">
@@ -3390,7 +3522,8 @@ public abstract class Flux<T> implements CorePublisher<T> {
 
 	/**
 	 * Collect all elements emitted by this {@link Flux} into a hashed {@link Map} that is
-	 * emitted by the resulting {@link Mono} when this sequence completes.
+	 * emitted by the resulting {@link Mono} when this sequence completes, emitting the
+	 * empty {@link Map} if the sequence was empty.
 	 * The key is extracted from each element by applying the {@code keyExtractor}
 	 * {@link Function}. In case several elements map to the same key, the associated value
 	 * will be the most recently emitted element.
@@ -3413,7 +3546,8 @@ public abstract class Flux<T> implements CorePublisher<T> {
 
 	/**
 	 * Collect all elements emitted by this {@link Flux} into a hashed {@link Map} that is
-	 * emitted by the resulting {@link Mono} when this sequence completes.
+	 * emitted by the resulting {@link Mono} when this sequence completes, emitting the
+	 * empty {@link Map} if the sequence was empty.
 	 * The key is extracted from each element by applying the {@code keyExtractor}
 	 * {@link Function}, and the value is extracted by the {@code valueExtractor} Function.
 	 * In case several elements map to the same key, the associated value will be derived
@@ -3441,7 +3575,8 @@ public abstract class Flux<T> implements CorePublisher<T> {
 
 	/**
 	 * Collect all elements emitted by this {@link Flux} into a user-defined {@link Map} that is
-	 * emitted by the resulting {@link Mono} when this sequence completes.
+	 * emitted by the resulting {@link Mono} when this sequence completes, emitting the
+	 * empty {@link Map} if the sequence was empty.
 	 * The key is extracted from each element by applying the {@code keyExtractor}
 	 * {@link Function}, and the value is extracted by the {@code valueExtractor} Function.
 	 * In case several elements map to the same key, the associated value will be derived
@@ -3475,7 +3610,8 @@ public abstract class Flux<T> implements CorePublisher<T> {
 
 	/**
 	 * Collect all elements emitted by this {@link Flux} into a {@link Map multimap} that is
-	 * emitted by the resulting {@link Mono} when this sequence completes.
+	 * emitted by the resulting {@link Mono} when this sequence completes, emitting the
+	 * empty {@link Map multimap} if the sequence was empty.
 	 * The key is extracted from each element by applying the {@code keyExtractor}
 	 * {@link Function}, and every element mapping to the same key is stored in the {@link List}
 	 * associated to said key.
@@ -3489,6 +3625,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * @param keyExtractor a {@link Function} to map elements to a key for the {@link Map}
 	 *
 	 * @param <K> the type of the key extracted from each source element
+	 *
 	 * @return a {@link Mono} of a {@link Map} of key-List(elements) pairs
 	 */
 	public final <K> Mono<Map<K, Collection<T>>> collectMultimap(Function<? super T, ? extends K> keyExtractor) {
@@ -3497,7 +3634,8 @@ public abstract class Flux<T> implements CorePublisher<T> {
 
 	/**
 	 * Collect all elements emitted by this {@link Flux} into a {@link Map multimap} that is
-	 * emitted by the resulting {@link Mono} when this sequence completes.
+	 * emitted by the resulting {@link Mono} when this sequence completes, emitting the
+	 * empty {@link Map multimap} if the sequence was empty.
 	 * The key is extracted from each element by applying the {@code keyExtractor}
 	 * {@link Function}, and every element mapping to the same key is converted by the
 	 * {@code valueExtractor} Function to a value stored in the {@link List} associated to
@@ -3524,7 +3662,8 @@ public abstract class Flux<T> implements CorePublisher<T> {
 
 	/**
 	 * Collect all elements emitted by this {@link Flux} into a user-defined {@link Map multimap} that is
-	 * emitted by the resulting {@link Mono} when this sequence completes.
+	 * emitted by the resulting {@link Mono} when this sequence completes, emitting the
+	 * empty {@link Map multimap} if the sequence was empty.
 	 * The key is extracted from each element by applying the {@code keyExtractor}
 	 * {@link Function}, and every element mapping to the same key is converted by the
 	 * {@code valueExtractor} Function to a value stored in the {@link Collection} associated to
@@ -3564,7 +3703,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	/**
 	 * Collect all elements emitted by this {@link Flux} until this sequence completes,
 	 * and then sort them in natural order into a {@link List} that is emitted by the
-	 * resulting {@link Mono}.
+	 * resulting {@link Mono}. If the sequence was empty, empty {@link List} will be emitted.
 	 *
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/collectSortedList.svg" alt="">
@@ -3581,7 +3720,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	/**
 	 * Collect all elements emitted by this {@link Flux} until this sequence completes,
 	 * and then sort them using a {@link Comparator} into a {@link List} that is emitted
-	 * by the resulting {@link Mono}.
+	 * by the resulting {@link Mono}. If the sequence was empty, empty {@link List} will be emitted.
 	 *
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/collectSortedListWithComparator.svg" alt="">
@@ -4029,6 +4168,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * 	 * if the sequence is cancelled during the delay.
 	 *
 	 * @param delay {@link Duration} to shift the sequence by
+	 *
 	 * @return an shifted {@link Flux} emitting at the same frequency as the source
 	 */
 	public final Flux<T> delaySequence(Duration delay) {
@@ -4060,6 +4200,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * @param delay {@link Duration} to shift the sequence by
 	 * @param timer a time-capable {@link Scheduler} instance to delay signals on
+	 *
 	 * @return an shifted {@link Flux} emitting at the same frequency as the source
 	 */
 	public final Flux<T> delaySequence(Duration delay, Scheduler timer) {
@@ -4521,13 +4662,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * The {@link Consumer} is executed first, then the onNext signal is propagated
 	 * downstream.
 	 *
-	 * @param onNext the callback to call on {@link Subscriber#onNext}
-	 *
 	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
 	 * (including when fusion is enabled). Exceptions thrown by the consumer are passed to
 	 * the {@link #onErrorContinue(BiConsumer)} error consumer (the value consumer
 	 * is not invoked, as the source element will be part of the sequence). The onNext
 	 * signal is then propagated as normal.
+	 *
+	 * @param onNext the callback to call on {@link Subscriber#onNext}
 	 *
 	 * @return an observed  {@link Flux}
 	 */
@@ -4905,15 +5046,15 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/filterForFlux.svg" alt="">
 	 *
-	 * @param p the {@link Predicate} to test values against
+	 * <p><strong>Discard Support:</strong> This operator discards elements that do not match the filter. It
+	 * also discards elements internally queued for backpressure upon cancellation or error triggered by a data signal.
 	 *
 	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
 	 * (including when fusion is enabled). Exceptions thrown by the predicate are
 	 * considered as if the predicate returned false: they cause the source value to be
 	 * dropped and a new element ({@code request(1)}) being requested from upstream.
 	 *
-	 * <p><strong>Discard Support:</strong> This operator discards elements that do not match the filter. It
-	 * also discards elements internally queued for backpressure upon cancellation or error triggered by a data signal.
+	 * @param p the {@link Predicate} to test values against
 	 *
 	 * @return a new {@link Flux} containing only values that pass the predicate test
 	 */
@@ -4942,6 +5083,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * @param asyncPredicate the function generating a {@link Publisher} of {@link Boolean}
 	 * for each value, to filter the Flux with
+	 *
 	 * @return a filtered {@link Flux}
 	 */
 	public final Flux<T> filterWhen(Function<? super T, ? extends Publisher<Boolean>> asyncPredicate) {
@@ -4971,6 +5113,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * capped depending on the size of the heap and the JVM limits, so be careful with
 	 * large values (although eg. {@literal 65536} should still be fine). Also serves as
 	 * the initial request size for the source.
+	 *
 	 * @return a filtered {@link Flux}
 	 */
 	public final Flux<T> filterWhen(Function<? super T, ? extends Publisher<Boolean>> asyncPredicate,
@@ -4999,15 +5142,15 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements internally queued for backpressure upon cancellation or error triggered by a data signal.
 	 *
-	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
-	 * @param <R> the merged output sequence type
-	 *
 	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
 	 * in the mapper {@link Function}. Exceptions thrown by the mapper then behave as if
 	 * it had mapped the value to an empty publisher. If the mapper does map to a scalar
 	 * publisher (an optimization in which the value can be resolved immediately without
 	 * subscribing to the publisher, e.g. a {@link Mono#fromCallable(Callable)}) but said
 	 * publisher throws, this can be resumed from in the same manner.
+	 *
+	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
+	 * @param <R> the merged output sequence type
 	 *
 	 * @return a new {@link Flux}
 	 */
@@ -5040,16 +5183,17 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements internally queued for backpressure upon cancellation or error triggered by a data signal.
 	 *
-	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
-	 * @param concurrency the maximum number of in-flight inner sequences
-	 * @param <V> the merged output sequence type
-	 *
 	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
 	 * in the mapper {@link Function}. Exceptions thrown by the mapper then behave as if
 	 * it had mapped the value to an empty publisher. If the mapper does map to a scalar
 	 * publisher (an optimization in which the value can be resolved immediately without
 	 * subscribing to the publisher, e.g. a {@link Mono#fromCallable(Callable)}) but said
 	 * publisher throws, this can be resumed from in the same manner.
+	 *
+	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
+	 * @param concurrency the maximum number of in-flight inner sequences
+	 *
+	 * @param <V> the merged output sequence type
 	 *
 	 * @return a new {@link Flux}
 	 */
@@ -5085,17 +5229,18 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements internally queued for backpressure upon cancellation or error triggered by a data signal.
 	 *
-	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
-	 * @param concurrency the maximum number of in-flight inner sequences
-	 * @param prefetch the maximum in-flight elements from each inner {@link Publisher} sequence
-	 * @param <V> the merged output sequence type
-	 *
 	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
 	 * in the mapper {@link Function}. Exceptions thrown by the mapper then behave as if
 	 * it had mapped the value to an empty publisher. If the mapper does map to a scalar
 	 * publisher (an optimization in which the value can be resolved immediately without
 	 * subscribing to the publisher, e.g. a {@link Mono#fromCallable(Callable)}) but said
 	 * publisher throws, this can be resumed from in the same manner.
+	 *
+	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
+	 * @param concurrency the maximum number of in-flight inner sequences
+	 * @param prefetch the maximum in-flight elements from each inner {@link Publisher} sequence
+	 *
+	 * @param <V> the merged output sequence type
 	 *
 	 * @return a merged {@link Flux}
 	 */
@@ -5129,17 +5274,18 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements internally queued for backpressure upon cancellation or error triggered by a data signal.
 	 *
-	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
-	 * @param concurrency the maximum number of in-flight inner sequences
-	 * @param prefetch the maximum in-flight elements from each inner {@link Publisher} sequence
-	 * @param <V> the merged output sequence type
-	 *
 	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
 	 * in the mapper {@link Function}. Exceptions thrown by the mapper then behave as if
 	 * it had mapped the value to an empty publisher. If the mapper does map to a scalar
 	 * publisher (an optimization in which the value can be resolved immediately without
 	 * subscribing to the publisher, e.g. a {@link Mono#fromCallable(Callable)}) but said
 	 * publisher throws, this can be resumed from in the same manner.
+	 *
+	 * @param mapper the {@link Function} to transform input sequence into N sequences {@link Publisher}
+	 * @param concurrency the maximum number of in-flight inner sequences
+	 * @param prefetch the maximum in-flight elements from each inner {@link Publisher} sequence
+	 *
+	 * @param <V> the merged output sequence type
 	 *
 	 * @return a merged {@link Flux}
 	 */
@@ -5223,7 +5369,9 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * signal is then propagated as normal.
 	 *
 	 * @param mapper the {@link Function} to transform input sequence into N {@link Iterable}
+	 *
 	 * @param <R> the merged output sequence type
+	 *
 	 * @return a concatenation of the values from the Iterables obtained from each element in this {@link Flux}
 	 */
 	public final <R> Flux<R> flatMapIterable(Function<? super T, ? extends Iterable<? extends R>> mapper) {
@@ -5263,7 +5411,9 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * @param mapper the {@link Function} to transform input sequence into N {@link Iterable}
 	 * @param prefetch the number of values to request from the source upon subscription, to be transformed to {@link Iterable}
+	 *
 	 * @param <R> the merged output sequence type
+	 *
 	 * @return a concatenation of the values from the Iterables obtained from each element in this {@link Flux}
 	 */
 	public final <R> Flux<R> flatMapIterable(Function<? super T, ? extends Iterable<? extends R>> mapper, int prefetch) {
@@ -5461,6 +5611,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * if the groups are not suitably consumed downstream (eg. due to a {@code flatMap}
 	 * with a {@code maxConcurrency} parameter that is set too low).
 	 *
+	 * <p>
+	 * Note that groups are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a specific group more than once: groups are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
+	 *
 	 * @param keyMapper the key mapping {@link Function} that evaluates an incoming data and returns a key.
 	 * @param <K> the key type extracted from each value of this sequence
 	 *
@@ -5484,6 +5641,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * Notably when the criteria produces a large amount of groups, it can lead to hanging
 	 * if the groups are not suitably consumed downstream (eg. due to a {@code flatMap}
 	 * with a {@code maxConcurrency} parameter that is set too low).
+	 *
+	 * <p>
+	 * Note that groups are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a specific group more than once: groups are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
 	 *
 	 * @param keyMapper the key mapping {@link Function} that evaluates an incoming data and returns a key.
 	 * @param prefetch the number of values to prefetch from the source
@@ -5510,6 +5674,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * Notably when the criteria produces a large amount of groups, it can lead to hanging
 	 * if the groups are not suitably consumed downstream (eg. due to a {@code flatMap}
 	 * with a {@code maxConcurrency} parameter that is set too low).
+	 *
+	 * <p>
+	 * Note that groups are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a specific group more than once: groups are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
 	 *
 	 * @param keyMapper the key mapping function that evaluates an incoming data and returns a key.
 	 * @param valueMapper the value mapping function that evaluates which data to extract for re-routing.
@@ -5539,6 +5710,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * Notably when the criteria produces a large amount of groups, it can lead to hanging
 	 * if the groups are not suitably consumed downstream (eg. due to a {@code flatMap}
 	 * with a {@code maxConcurrency} parameter that is set too low).
+	 *
+	 * <p>
+	 * Note that groups are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a specific group more than once: groups are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
 	 *
 	 * @param keyMapper the key mapping function that evaluates an incoming data and returns a key.
 	 * @param valueMapper the value mapping function that evaluates which data to extract for re-routing.
@@ -5606,12 +5784,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * call must be performed and/or 0 or 1 {@link SynchronousSink#error(Throwable)} or
 	 * {@link SynchronousSink#complete()}.
 	 *
-	 * @param handler the handling {@link BiConsumer}
-	 * @param <R> the transformed type
-	 *
 	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors} (including when
 	 * fusion is enabled) when the {@link BiConsumer} throws an exception or if an error is signaled explicitly via
 	 * {@link SynchronousSink#error(Throwable)}.
+	 *
+	 * @param handler the handling {@link BiConsumer}
+	 *
+	 * @param <R> the transformed type
 	 *
 	 * @return a transformed {@link Flux}
 	 */
@@ -5795,6 +5974,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * <p><strong>Discard Support:</strong> This operator discards elements before the last.
 	 *
 	 * @param defaultValue  a single fallback item if this {@link Flux} is empty
+	 *
 	 * @return a {@link Mono} with the last value in this {@link Flux}
 	 */
     public final Mono<T> last(T defaultValue) {
@@ -6077,13 +6257,14 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/mapForFlux.svg" alt="">
 	 *
-	 * @param mapper the synchronous transforming {@link Function}
-	 * @param <V> the transformed type
-	 *
 	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
 	 * (including when fusion is enabled). Exceptions thrown by the mapper then cause the
 	 * source value to be dropped and a new element ({@code request(1)}) being requested
 	 * from upstream.
+	 *
+	 * @param mapper the synchronous transforming {@link Function}
+	 *
+	 * @param <V> the transformed type
 	 *
 	 * @return a transformed {@link Flux}
 	 */
@@ -6103,13 +6284,14 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/mapNotNullForFlux.svg" alt="">
 	 *
-	 * @param mapper the synchronous transforming {@link Function}
-	 * @param <V> the transformed type
-	 *
 	 * <p><strong>Error Mode Support:</strong> This operator supports {@link #onErrorContinue(BiConsumer) resuming on errors}
 	 * (including when fusion is enabled). Exceptions thrown by the mapper then cause the
 	 * source value to be dropped and a new element ({@code request(1)}) being requested
 	 * from upstream.
+	 *
+	 * @param mapper the synchronous transforming {@link Function}
+	 *
+	 * @param <V> the transformed type
 	 *
 	 * @return a transformed {@link Flux}
 	 */
@@ -6154,20 +6336,62 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * in its own Scheduler, as merge would otherwise attempt to drain it before subscribing to
 	 * another source.
 	 * <p>
-	 * <img class="marble" src="doc-files/marbles/mergeOrderedWith.svg" alt="">
+	 * Note that it is delaying errors until all data is consumed.
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/mergeComparingWith.svg" alt="">
 	 *
 	 * @param other the {@link Publisher} to merge with
 	 * @param otherComparator the {@link Comparator} to use for merging
 	 *
-	 * @return a new {@link Flux}
+	 * @return a new {@link Flux} that compares latest values from the given publisher
+	 * and this flux, using the smallest value and replenishing the source that produced it
+	 * @deprecated Use {@link #mergeComparingWith(Publisher, Comparator)} instead
+	 * (with the caveat that it defaults to NOT delaying errors, unlike this operator).
+	 * To be removed in 3.6.0 at the earliest.
 	 */
+	@Deprecated
 	public final Flux<T> mergeOrderedWith(Publisher<? extends T> other,
 			Comparator<? super T> otherComparator) {
-		if (this instanceof FluxMergeOrdered) {
-			FluxMergeOrdered<T> fluxMerge = (FluxMergeOrdered<T>) this;
+		if (this instanceof FluxMergeComparing) {
+			FluxMergeComparing<T> fluxMerge = (FluxMergeComparing<T>) this;
 			return fluxMerge.mergeAdditionalSource(other, otherComparator);
 		}
 		return mergeOrdered(otherComparator, this, other);
+	}
+
+	/**
+	 * Merge data from this {@link Flux} and a {@link Publisher} into a reordered merge
+	 * sequence, by picking the smallest value from each sequence as defined by a provided
+	 * {@link Comparator}. Note that subsequent calls are combined, and their comparators are
+	 * in lexicographic order as defined by {@link Comparator#thenComparing(Comparator)}.
+	 * <p>
+	 * The combination step is avoided if the two {@link Comparator Comparators} are
+	 * {@link Comparator#equals(Object) equal} (which can easily be achieved by using the
+	 * same reference, and is also always true of {@link Comparator#naturalOrder()}).
+	 * <p>
+	 * Note that merge is tailored to work with asynchronous sources or finite sources. When dealing with
+	 * an infinite source that doesn't already publish on a dedicated Scheduler, you must isolate that source
+	 * in its own Scheduler, as merge would otherwise attempt to drain it before subscribing to
+	 * another source.
+	 * <p>
+	 * <img class="marble" src="doc-files/marbles/mergeComparingWith.svg" alt="">
+	 * <p>
+	 * mergeComparingWith doesn't delay errors by default, but it will inherit the delayError
+	 * behavior of a mergeComparingDelayError directly above it.
+	 *
+	 * @param other the {@link Publisher} to merge with
+	 * @param otherComparator the {@link Comparator} to use for merging
+	 *
+	 * @return a new {@link Flux} that compares latest values from the given publisher
+	 * and this flux, using the smallest value and replenishing the source that produced it
+	 */
+	public final Flux<T> mergeComparingWith(Publisher<? extends T> other,
+			Comparator<? super T> otherComparator) {
+		if (this instanceof FluxMergeComparing) {
+			FluxMergeComparing<T> fluxMerge = (FluxMergeComparing<T>) this;
+			return fluxMerge.mergeAdditionalSource(other, otherComparator);
+		}
+		return mergeComparing(otherComparator, this, other);
 	}
 
 	/**
@@ -7304,6 +7528,10 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 */
 	public final ConnectableFlux<T> replay(int history) {
+		if (history == 0) {
+			//TODO Flux.replay with history == 0 doesn't make much sense. This was replaced by Flux.publish, but such calls will be rejected in a future version
+			return onAssembly(new FluxPublish<>(this, Queues.SMALL_BUFFER_SIZE, Queues.get(Queues.SMALL_BUFFER_SIZE)));
+		}
 		return onAssembly(new FluxReplay<>(this, history, 0L, null));
 	}
 
@@ -7383,6 +7611,10 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 */
 	public final ConnectableFlux<T> replay(int history, Duration ttl, Scheduler timer) {
 		Objects.requireNonNull(timer, "timer");
+		if (history == 0) {
+			//TODO Flux.replay with history == 0 doesn't make much sense. This was replaced by Flux.publish, but such calls will be rejected in a future version
+			return onAssembly(new FluxPublish<>(this, Queues.SMALL_BUFFER_SIZE, Queues.get(Queues.SMALL_BUFFER_SIZE)));
+		}
 		return onAssembly(new FluxReplay<>(this, history, ttl.toNanos(), timer));
 	}
 
@@ -9303,6 +9535,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowWithMaxSize.svg" alt="">
 	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
+	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal.
 	 *
@@ -9331,6 +9570,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowWithMaxSizeEqualsSkipSize.svg" alt="">
 	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
+	 *
 	 * <p><strong>Discard Support:</strong> The overlapping variant DOES NOT discard elements, as they might be part of another still valid window.
 	 * The exact window and dropping window variants bot discard elements they internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal. The dropping window variant also discards elements in between windows.
@@ -9355,6 +9601,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowWithBoundary.svg" alt="">
 	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
+	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal.
 	 *
@@ -9374,6 +9627,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowWithTimespan.svg" alt="">
+	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal.
@@ -9406,6 +9666,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowWithTimespanEqualsOpenWindowEvery.svg" alt="">
 	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
+	 *
 	 * <p><strong>Discard Support:</strong> The overlapping variant DOES NOT discard elements, as they might be part of another still valid window.
 	 * The exact window and dropping window variants bot discard elements they internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal. The dropping window variant also discards elements in between windows.
@@ -9427,6 +9694,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowWithTimespan.svg" alt="">
+	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal.
@@ -9460,6 +9734,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowWithTimespanEqualsOpenWindowEvery.svg" alt="">
 	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
+	 *
 	 * <p><strong>Discard Support:</strong> The overlapping variant DOES NOT discard elements, as they might be part of another still valid window.
 	 * The exact window and dropping window variants bot discard elements they internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal. The dropping window variant also discards elements in between windows.
@@ -9488,6 +9769,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowTimeout.svg" alt="">
 	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
+	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal.
 	 *
@@ -9509,6 +9797,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowTimeout.svg" alt="">
+	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal.
@@ -9535,6 +9830,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowUntil.svg" alt="">
+	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal. Upon cancellation of the current window,
@@ -9565,6 +9867,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * expose empty windows, as the separators are emitted into the windows they close.
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowUntilWithCutBefore.svg" alt="">
+	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal. Upon cancellation of the current window,
@@ -9598,6 +9907,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowUntilWithCutBefore.svg" alt="">
 	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
+	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal. Upon cancellation of the current window,
 	 * it also discards the remaining elements that were bound for it until the main sequence completes
@@ -9624,7 +9940,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowUntilChanged.svg" alt="">
+	 *
 	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal. Upon cancellation of the current window,
@@ -9644,7 +9966,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowUntilChangedWithKeySelector.svg" alt="">
+	 *
 	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal. Upon cancellation of the current window,
@@ -9666,7 +9994,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 *
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowUntilChangedWithKeySelector.svg" alt="">
+	 *
 	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal. Upon cancellation of the current window,
@@ -9696,6 +10030,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowWhile.svg" alt="">
 	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
+	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal, as well as the triggering element(s) (that doesn't match
 	 * the predicate). Upon cancellation of the current window, it also discards the remaining elements
@@ -9721,6 +10062,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * to be emitted.
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowWhile.svg" alt="">
+	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
 	 *
 	 * <p><strong>Discard Support:</strong> This operator discards elements it internally queued for backpressure
 	 * upon cancellation or error triggered by a data signal, as well as the triggering element(s) (that doesn't match
@@ -9753,6 +10101,13 @@ public abstract class Flux<T> implements CorePublisher<T> {
 	 * When Open signal is exactly coordinated with Close signal : exact windows
 	 * <p>
 	 * <img class="marble" src="doc-files/marbles/windowWhen.svg" alt="">
+	 *
+	 * <p>
+	 * Note that windows are a live view of part of the underlying source publisher,
+	 * and as such their lifecycle is tied to that source. As a result, it is not possible
+	 * to subscribe to a window more than once: they are unicast.
+	 * This is most noticeable when trying to {@link #retry()} or {@link #repeat()} a window,
+	 * as these operators are based on re-subscription.
 	 *
 	 * <p><strong>Discard Support:</strong> This operator DOES NOT discard elements.
 	 *
