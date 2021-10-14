@@ -8926,7 +8926,7 @@ public abstract class Flux<T> implements CorePublisher<T> {
 			return takeUntilOther(Mono.delay(timespan, timer));
 		}
 		else {
-			return take(0);
+			return take(0, false);
 		}
 	}
 
